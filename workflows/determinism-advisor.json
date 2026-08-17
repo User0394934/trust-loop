@@ -1,0 +1,232 @@
+{
+  "name": "Determinism Advisor",
+  "nodes": [
+    {
+      "id": "e5d6f644-62d1-4aaf-bce1-859a4537dc88",
+      "name": "Review A Workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ac642f9c-ec31-4686-967a-30f24b90e78f",
+      "name": "Load The Steps Under Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const steps = [\n  { step: 'Extract invoice number from PDF', mode: 'agentic', needs_judgement: false, output_shape: 'fixed', reversible: true, runs_per_day: 4000, cent_cost: 1.8, blast_radius: 'low' },\n  { step: 'Decide if this invoice looks fraudulent', mode: 'deterministic', needs_judgement: true, output_shape: 'open', reversible: true, runs_per_day: 4000, cent_cost: 0.0, blast_radius: 'medium' },\n  { step: 'Write the refusal email to the supplier', mode: 'agentic', needs_judgement: true, output_shape: 'open', reversible: false, runs_per_day: 60, cent_cost: 2.4, blast_radius: 'high' },\n  { step: 'Convert currency using todays ECB rate', mode: 'agentic', needs_judgement: false, output_shape: 'fixed', reversible: true, runs_per_day: 4000, cent_cost: 1.1, blast_radius: 'low' },\n  { step: 'Post the payment to the ledger', mode: 'agentic', needs_judgement: false, output_shape: 'fixed', reversible: false, runs_per_day: 900, cent_cost: 1.6, blast_radius: 'high' },\n  { step: 'Summarise the month for the finance lead', mode: 'agentic', needs_judgement: true, output_shape: 'open', reversible: true, runs_per_day: 1, cent_cost: 9.0, blast_radius: 'low' }\n];\nreturn [{ json: { workflow_under_review: 'Invoice Triage', steps: steps } }];"
+      }
+    },
+    {
+      "id": "a2886cf8-cd40-49a8-a4f2-ce53197af5a8",
+      "name": "Where Does Each Step Belong",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nconst verdicts = d.steps.map(function (s) {\n  let belongs = 'DETERMINISTIC';\n  let because = 'Fixed output shape and no judgement needed. A model here buys nothing and adds variance.';\n  if (!s.reversible && s.blast_radius === 'high') {\n    belongs = 'HUMAN';\n    because = 'Irreversible and high blast radius. Judgement is cheap, an unrecoverable mistake is not.';\n  } else if (s.needs_judgement && s.output_shape === 'open') {\n    belongs = 'AGENTIC';\n    because = 'Open-ended judgement over unstructured input. This is the part only a model can do.';\n  }\n  return {\n    step: s.step,\n    currently: s.mode.toUpperCase(),\n    belongs: belongs,\n    misplaced: belongs !== s.mode.toUpperCase(),\n    because: because,\n    daily_cents_now: Number((s.runs_per_day * s.cent_cost).toFixed(1)),\n    daily_cents_after: belongs === 'AGENTIC' ? Number((s.runs_per_day * s.cent_cost).toFixed(1)) : 0\n  };\n});\nreturn [{ json: { workflow_under_review: d.workflow_under_review, verdicts: verdicts } }];"
+      }
+    },
+    {
+      "id": "7ec876e6-6be4-46ac-8e8e-dc2771b80602",
+      "name": "Cost And Variance Scorecard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nconst misplaced = d.verdicts.filter(function (v) { return v.misplaced; });\nconst now = d.verdicts.reduce(function (a, v) { return a + v.daily_cents_now; }, 0);\nconst after = d.verdicts.reduce(function (a, v) { return a + v.daily_cents_after; }, 0);\nconst saved = Number(((now - after) / 100).toFixed(2));\nconst overAgentic = misplaced.filter(function (v) { return v.currently === 'AGENTIC' && v.belongs !== 'AGENTIC'; });\nconst underAgentic = misplaced.filter(function (v) { return v.belongs === 'AGENTIC' && v.currently !== 'AGENTIC'; });\nconst needsHuman = d.verdicts.filter(function (v) { return v.belongs === 'HUMAN' && v.currently !== 'HUMAN'; });\nconst plan = misplaced.map(function (v) { return 'Move \\\"' + v.step + '\\\" from ' + v.currently + ' to ' + v.belongs + '. ' + v.because; });\nconst say = misplaced.length + ' of ' + d.verdicts.length + ' steps are in the wrong place. ' +\n  overAgentic.length + ' use a model where plain code would be exact, cheaper and repeatable. ' +\n  underAgentic.length + ' use hard-coded rules where the input is genuinely open-ended. ' +\n  needsHuman.length + ' are irreversible and should stop for a person. ' +\n  'Fixing the over-agentic ones alone saves about EUR ' + saved + ' per day and removes that much non-determinism from the run.';\nreturn [{ json: { plain_english: say, misplaced_count: misplaced.length, euro_saved_per_day: saved, over_agentic: overAgentic.length, under_agentic: underAgentic.length, needs_human: needsHuman.length, refactor_plan: plan, has_misplacements: misplaced.length > 0 } }];"
+      }
+    },
+    {
+      "id": "249589b7-820b-4acb-bbc2-365d46c23f0b",
+      "name": "Anything In The Wrong Place",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.has_misplacements }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "679a9614-a2ae-4f41-9ed4-452776b667fb",
+      "name": "REFACTOR: Model Used Where Code Belongs",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        32
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "953ecc6f-ccca-4151-af14-e92385ca8531",
+      "name": "BALANCED: Every Step Is Where It Should Be",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        288
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a401bc01-b9e3-4f9b-a462-6d1c1ca464ff",
+      "name": "Sticky Note fa118967",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -50,
+        110
+      ],
+      "parameters": {
+        "content": "## Determinism Advisor - should this even be an agent?\n\nn8n says it plainly: *\"Not everything should be automated. Not everything should be agentic. The magic is knowing what belongs where.\"*\n\nToday nothing in the product answers that question. People wire an AI Agent node into a step that is pure string extraction, then wonder why the output changes every Tuesday.\n\nThis reads a workflow step by step and gives each one a verdict: **DETERMINISTIC**, **AGENTIC**, or **HUMAN** - with the reason, the daily cost of getting it wrong, and a refactor plan.",
+        "color": 4,
+        "width": 540,
+        "height": 200
+      }
+    },
+    {
+      "id": "18bc25af-4922-4067-a62a-613461e66120",
+      "name": "Sticky Note 8dbf7a3f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        430,
+        110
+      ],
+      "parameters": {
+        "content": "## The three rules it applies\n\n1. **Irreversible and high blast radius** -> HUMAN. Judgement is cheap. An unrecoverable mistake is not.\n2. **Open-ended judgement over unstructured input** -> AGENTIC. This is the only part a model is actually needed for.\n3. **Everything else** -> DETERMINISTIC. A model here buys nothing and adds variance.\n\nThe interesting failure is not \"AI is wrong\". It is **AI used where a regex would have been exact** - 4,000 times a day, at 1.8 cents a call.",
+        "color": 3,
+        "width": 540,
+        "height": 200
+      }
+    },
+    {
+      "id": "0b9936cc-7ff6-418a-9df8-3ad0ec9ea28c",
+      "name": "Sticky Note d030f9a9",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        910,
+        -18
+      ],
+      "parameters": {
+        "content": "## Why this belongs in the product\n\nEvery other trust tool tells you your AI step failed. This one tells you the step should never have been an AI step.\n\nIt is the cheapest possible reliability win: not a better model, not a better prompt - **less surface area.**",
+        "color": 5,
+        "width": 540,
+        "height": 328
+      }
+    }
+  ],
+  "connections": {
+    "Review A Workflow": {
+      "main": [
+        [
+          {
+            "node": "Load The Steps Under Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load The Steps Under Review": {
+      "main": [
+        [
+          {
+            "node": "Where Does Each Step Belong",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Where Does Each Step Belong": {
+      "main": [
+        [
+          {
+            "node": "Cost And Variance Scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost And Variance Scorecard": {
+      "main": [
+        [
+          {
+            "node": "Anything In The Wrong Place",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything In The Wrong Place": {
+      "main": [
+        [
+          {
+            "node": "REFACTOR: Model Used Where Code Belongs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BALANCED: Every Step Is Where It Should Be",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}
