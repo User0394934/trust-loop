@@ -50,14 +50,22 @@ If you want to see something that actually executes rather than models, open
 If you want to know what I think is wrong with this repo, open
 [`docs/06-limitations.md`](docs/06-limitations.md). I would read that one second.
 
+If you would rather see the argument fail in practice than be asserted, open
+[`docs/07-platform-sentinel.md`](docs/07-platform-sentinel.md). I built a monitoring workflow, its
+first run reported GREEN across the board, and it had actually checked one seventh of what it
+claimed. Four bugs, an execution log, and the fix that makes GREEN something the tool has to earn.
+
 ## How to run these
 
 1. In n8n, go to **Workflows → Import from File** and pick any JSON in `workflows/`.
 2. Every workflow runs on a **Manual Trigger** or a **Schedule Trigger**, with one exception: Replay Cassette uses a
    **Webhook**, so you need to activate it or use Test URL.
-3. **No credentials are required.** Nothing here calls a paid API. Input data is seeded in Code nodes so the graph runs
-   end to end on a fresh instance with nothing configured. That is deliberate, and it is also the biggest honest
-   limitation — see `docs/06-limitations.md`.
+3. **The first six need no credentials.** Nothing in them calls a paid API. Input data is seeded in Code nodes so the
+   graph runs end to end on a fresh instance with nothing configured. That is deliberate, and it is also the biggest
+   honest limitation — see `docs/06-limitations.md`.
+   The exception is **Platform Sentinel**, which audits a real instance and therefore needs a real n8n API credential
+   and three Data Tables. Setup is in `docs/07-platform-sentinel.md`. Without them it does not pretend to work — it
+   reports which checks it could not run, which is the entire point of that workflow.
 4. Read the sticky notes. They carry the reasoning, not just the labels.
 
 ## Repository layout
@@ -70,6 +78,7 @@ docs/
   04-replay-cassette.md          deep dive on the one that really runs
   05-what-i-would-ship-first.md  prioritisation, with the reasoning shown
   06-limitations.md              what is stubbed, what I would fix, in what order
+  07-platform-sentinel.md        a monitor, the four bugs it hid from me, and the fix
 workflows/
   determinism-advisor.json       10 nodes
   replay-cassette.json           10 nodes, live webhook
@@ -77,17 +86,24 @@ workflows/
   regret-log.json                10 nodes
   trust-ledger.json              10 nodes
   community-failure-miner.json   10 nodes
+  platform-sentinel.json         33 nodes, audits a live instance, needs credentials
 ```
 
 ## A note on size
 
-Every workflow here is ten nodes. That is on purpose and I expect to be asked about it.
+Six of the seven workflows here are ten nodes. That is on purpose and I expect to be asked about it.
 
 I could have built one sprawling sixty-node monster and it would have looked more impressive in a screenshot. It would
 also have contradicted the first thing this repo argues, which is that the cheapest reliability win available to
 anyone is **less surface area**. A ten-node workflow that a stranger can read without me standing next to it is worth
 more than a sixty-node one that only I can maintain — and if I am wrong about that, then the Determinism Advisor is
 wrong too, and I would rather find that out in a conversation than hide it behind node count.
+
+The seventh workflow, Platform Sentinel, is 33 nodes and breaks that rule. It has a defensible reason — seven
+independent checks that must converge into a single alert genuinely need the parallel-then-merge shape — but it also
+proved the rule at my expense. Three of the four bugs I found in it were wiring and state-handling bugs of exactly the
+kind a ten-node workflow has no room to contain. The size is justified. It was not free, and
+[`docs/07-platform-sentinel.md`](docs/07-platform-sentinel.md) is the receipt.
 
 
 ## Licence

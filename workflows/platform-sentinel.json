@@ -1,0 +1,539 @@
+{
+  "name": "Platform Sentinel",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] } },
+      "id": "50bc0e5d-7b76-4dfc-9c77-4f21fd4a215b",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-1200, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "apiBase", "value": "https://YOUR-N8N-INSTANCE/api/v1", "type": "string" },
+            { "id": "a2", "name": "lookbackMinutes", "value": 60, "type": "number" },
+            { "id": "a3", "name": "errorSpikeThreshold", "value": 5, "type": "number" },
+            { "id": "a4", "name": "retentionMaxExecutions", "value": 50000, "type": "number" },
+            { "id": "a5", "name": "staleExecutionDays", "value": 30, "type": "number" },
+            { "id": "a6", "name": "hungMultiplier", "value": 1.5, "type": "number" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8464a463-2291-4b4e-8d55-a5195922d6f8",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [-1008, 400]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_trigger_registry" },
+        "returnAll": true
+      },
+      "id": "895bd5bc-1bd5-4756-a37b-d8d2f1e50f14",
+      "name": "Read Trigger Registry",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [-784, -416],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Config\").first().json.apiBase }}/executions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "workflowId", "value": "={{ $json.workflow_id }}" },
+            { "name": "status", "value": "success" },
+            { "name": "limit", "value": "1" },
+            { "name": "includeData", "value": "false" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 20000 }
+      },
+      "id": "4ec6793a-616a-40a1-a015-d78595bcf113",
+      "name": "Fetch Last Success Per Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-560, -416],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const reg = $(\"Read Trigger Registry\").all();\nconst res = $input.all();\nconst mult = $(\"Config\").first().json.hungMultiplier || 1.5;\nconst now = Date.now();\nconst valid = [];\nfor (const r of reg) { if (r.json && r.json.workflow_id) valid.push(r.json); }\nif (valid.length === 0) {\n  return [{ json: { finding_type: \"REGISTRY_EMPTY\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: \"instance\", check: \"1-silent-trigger\", detail: \"sentinel_trigger_registry is empty, so this check watched nothing. Seed it with the workflows that matter or this branch is decorative.\" } }];\n}\nconst out = [];\nfor (let i = 0; i < valid.length; i++) {\n  const r = valid[i];\n  const resp = res[i] ? res[i].json : null;\n  if (!resp || resp.error || !Array.isArray(resp.data)) {\n    out.push({ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, check: \"1-silent-trigger\", detail: \"could not read executions for \" + r.workflow_name + \": \" + (resp && resp.error ? (resp.error.message || \"API error\") : \"no response from the n8n API\") } });\n    continue;\n  }\n  const arr = resp.data;\n  const last = arr.length && arr[0].startedAt ? arr[0].startedAt : null;\n  const expected = Number(r.expected_interval_minutes) || 15;\n  if (!last) {\n    out.push({ json: { finding_type: \"SILENT_TRIGGER\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: \"no successful execution on record, expected every \" + expected + \" minutes\" } });\n    continue;\n  }\n  const elapsed = Math.round((now - new Date(last).getTime()) / 60000);\n  if (elapsed > expected * mult) {\n    out.push({ json: { finding_type: \"SILENT_TRIGGER\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: \"no successful execution in \" + elapsed + \" minutes, expected every \" + expected } });\n  }\n}\nreturn out;"
+      },
+      "id": "1c8afeff-238c-49bb-9f13-551020f1c874",
+      "name": "Detect Silent Triggers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, -416],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "numberInputs": 7 },
+      "id": "4f742051-213e-4ccb-aee9-94ec5e735861",
+      "name": "Merge All Checks",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [-16, 112]
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Config\").first().json.apiBase }}/executions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "limit", "value": "250" },
+            { "name": "includeData", "value": "false" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 20000 }
+      },
+      "id": "c793257d-ec74-4ebd-9087-16f9b4751304",
+      "name": "Fetch Recent Executions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-780, -200],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const first = $input.first();\nconst body = first ? first.json : null;\nif (!body || body.error || !Array.isArray(body.data)) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"2-hung-executions\", detail: \"could not list executions: \" + (body && body.error ? (body.error.message || \"API error\") : \"no response from the n8n API\") + \". Hung executions were NOT checked this run.\" } }];\n}\nconst execs = body.data;\nconst slaBy = {};\nconst nameBy = {};\nconst ownerBy = {};\ntry {\n  const reg = $(\"Read Trigger Registry\").all();\n  for (const r of reg) {\n    if (r.json && r.json.workflow_id) {\n      slaBy[r.json.workflow_id] = Number(r.json.sla_minutes) || 30;\n      nameBy[r.json.workflow_id] = r.json.workflow_name;\n      ownerBy[r.json.workflow_id] = r.json.owner;\n    }\n  }\n} catch (e) { }\nconst now = Date.now();\nconst out = [];\nfor (const e of execs) {\n  if (e.stoppedAt) continue;\n  if (!e.startedAt) continue;\n  const mins = Math.round((now - new Date(e.startedAt).getTime()) / 60000);\n  const sla = slaBy[e.workflowId] !== undefined ? slaBy[e.workflowId] : 30;\n  if (mins > sla) {\n    out.push({ json: { finding_type: \"HUNG_EXECUTION\", severity: \"CRITICAL\", workflow_id: e.workflowId, workflow_name: nameBy[e.workflowId] || e.workflowId, owner: ownerBy[e.workflowId], check: \"2-hung-executions\", detail: \"execution \" + e.id + \" running \" + mins + \" min, SLA \" + sla + \" min\" } });\n  }\n}\nreturn out;"
+      },
+      "id": "8e4cebe8-307d-4773-a5de-0412a27c4d80",
+      "name": "Detect Hung Executions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, -208],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Config\").first().json.apiBase }}/executions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "error" },
+            { "name": "limit", "value": "250" },
+            { "name": "includeData", "value": "false" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 20000 }
+      },
+      "id": "980ca525-ecb0-4367-b0de-ead2c5d05ce2",
+      "name": "Fetch Failed Executions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-560, 0],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $(\"Config\").first().json;\nconst lookback = Number(cfg.lookbackMinutes) || 60;\nconst threshold = Number(cfg.errorSpikeThreshold) || 5;\nconst first = $input.first();\nconst body = first ? first.json : null;\nif (!body || body.error || !Array.isArray(body.data)) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"3-error-spike\", detail: \"could not list failed executions: \" + (body && body.error ? (body.error.message || \"API error\") : \"no response from the n8n API\") + \". Error spikes were NOT checked this run.\" } }];\n}\nconst execs = body.data;\nconst cutoff = Date.now() - lookback * 60000;\nconst counts = {};\nfor (const e of execs) {\n  if (!e.startedAt) continue;\n  if (new Date(e.startedAt).getTime() < cutoff) continue;\n  counts[e.workflowId] = (counts[e.workflowId] || 0) + 1;\n}\nconst out = [];\nfor (const wid of Object.keys(counts)) {\n  if (counts[wid] > threshold) {\n    out.push({ json: { finding_type: \"ERROR_SPIKE\", severity: \"HIGH\", workflow_id: wid, workflow_name: wid, check: \"3-error-spike\", detail: counts[wid] + \" failures in the last \" + lookback + \" minutes\" } });\n  }\n}\nreturn out;"
+      },
+      "id": "1c11e5f2-45f2-4d2d-84be-4c0a04feba8f",
+      "name": "Detect Error Spikes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Config\").first().json.apiBase }}/executions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "limit", "value": "250" },
+            { "name": "includeData", "value": "false" }
+          ]
+        },
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "pagination": {
+            "pagination": {
+              "parameters": { "parameters": [{ "name": "cursor", "value": "={{ $response.body.nextCursor }}" }] },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.nextCursor }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "10b2fffb-3fae-4662-b184-106092ae823f",
+      "name": "Fetch All Executions Paged",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-560, 208],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $(\"Config\").first().json;\nconst maxKeep = Number(cfg.retentionMaxExecutions) || 50000;\nconst staleDays = Number(cfg.staleExecutionDays) || 30;\nconst pages = $input.all();\nlet good = 0;\nlet total = 0;\nlet stale = 0;\nlet firstErr = \"\";\nconst cutoff = Date.now() - staleDays * 86400000;\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  total += j.data.length;\n  for (const e of j.data) {\n    if (e.startedAt && new Date(e.startedAt).getTime() < cutoff) stale++;\n  }\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"4-retention\", detail: \"could not page executions: \" + firstErr + \". Retention was NOT checked this run.\" } }];\n}\nconst out = [];\nif (total > maxKeep || stale > 0) {\n  out.push({ json: { finding_type: \"RETENTION_BREACH\", severity: \"HIGH\", workflow_id: \"\", workflow_name: \"instance\", check: \"4-retention\", detail: total + \" executions retained across \" + good + \" page(s), \" + stale + \" older than \" + staleDays + \" days - pruning is not keeping up\" } });\n}\nreturn out;"
+      },
+      "id": "1c40db2a-908b-4343-96fa-22f06c91d1fd",
+      "name": "Detect Retention Breach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, 208],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Config\").first().json.apiBase }}/workflows",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [{ "name": "limit", "value": "250" }] },
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "pagination": {
+            "pagination": {
+              "parameters": { "parameters": [{ "name": "cursor", "value": "={{ $response.body.nextCursor }}" }] },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.nextCursor }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "308c7c91-d040-4d71-9624-4dcf2099043f",
+      "name": "Fetch Workflows For DoD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-780, 400],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pages = $input.all();\nconst wfs = [];\nlet good = 0;\nlet firstErr = \"\";\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  for (const w of j.data) wfs.push(w);\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"5-dod-lint\", detail: \"could not list workflows: \" + firstErr + \". Definition-of-Done was NOT checked this run.\" } }];\n}\nlet monitored = {};\ntry {\n  const reg = $(\"Read Trigger Registry\").all();\n  for (const r of reg) { if (r.json && r.json.workflow_id) monitored[r.json.workflow_id] = true; }\n} catch (e) { monitored = {}; }\nconst out = [];\nfor (const w of wfs) {\n  if (!w.active) continue;\n  const s = w.settings || {};\n  const tags = Array.isArray(w.tags) ? w.tags : [];\n  const label = w.name + \" (\" + w.id + \")\";\n  if (!s.errorWorkflow) out.push({ json: { finding_type: \"DOD_NO_ERROR_WORKFLOW\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no error workflow configured\" } });\n  if (!s.executionTimeout || Number(s.executionTimeout) < 1) out.push({ json: { finding_type: \"DOD_NO_TIMEOUT\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no execution timeout set\" } });\n  let hasOwner = false;\n  for (const t of tags) { const tn = typeof t === \"string\" ? t : (t && t.name ? t.name : \"\"); if (tn.indexOf(\"owner:\") === 0) hasOwner = true; }\n  if (!hasOwner) out.push({ json: { finding_type: \"DOD_NO_OWNER\", severity: \"MEDIUM\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no owner: tag\" } });\n  if (!monitored[w.id]) out.push({ json: { finding_type: \"DOD_NOT_MONITORED\", severity: \"MEDIUM\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" is active but not in sentinel_trigger_registry\" } });\n}\nreturn out;"
+      },
+      "id": "e804b7a2-5b08-4f83-a4e4-9282ccdb2e97",
+      "name": "Lint Definition Of Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, 400],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $(\"Config\").first().json.apiBase }}/workflows",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [{ "name": "limit", "value": "250" }] },
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "pagination": {
+            "pagination": {
+              "parameters": { "parameters": [{ "name": "cursor", "value": "={{ $response.body.nextCursor }}" }] },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.nextCursor }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "f63b9db0-45a4-402e-b490-0e6a550b1201",
+      "name": "Fetch Workflows For Credentials",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-560, 608],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pages = $input.all();\nconst wfs = [];\nlet good = 0;\nlet firstErr = \"\";\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  for (const w of j.data) wfs.push(w);\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"6-credential-map\", detail: \"could not list workflows: \" + firstErr + \". The credential map was NOT built this run.\" } }];\n}\nconst index = {};\nconst out = [];\nconst needsCred = [\"httpRequest\", \"slack\", \"gmail\", \"postgres\", \"mysql\", \"notion\", \"airtable\", \"googleSheets\", \"openAi\", \"telegram\", \"discord\", \"hubspot\", \"jira\", \"stripe\"];\nfor (const w of wfs) {\n  const nodes = Array.isArray(w.nodes) ? w.nodes : [];\n  const live = w.active === true && w.isArchived !== true;\n  for (const n of nodes) {\n    const creds = n.credentials || {};\n    const keys = Object.keys(creds);\n    if (keys.length === 0) {\n      const short = String(n.type || \"\").split(\".\").pop();\n      let requires = false;\n      for (const c of needsCred) { if (short === c) requires = true; }\n      if (requires && String(n.type).indexOf(\"n8n-nodes-base.httpRequest\") === 0 && n.parameters && n.parameters.authentication === \"none\") requires = false;\n      if (requires) out.push({ json: { finding_type: \"CREDENTIAL_MISSING\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"6-credential-map\", detail: \"node \\\"\" + n.name + \"\\\" in \" + w.name + \" requires a credential but none is set\" } });\n      continue;\n    }\n    for (const k of keys) {\n      const cname = creds[k] && creds[k].name ? creds[k].name : k;\n      if (!index[cname]) index[cname] = { workflows: [], anyLive: false };\n      index[cname].workflows.push(w.name + \" (\" + w.id + \")\");\n      if (live) index[cname].anyLive = true;\n    }\n  }\n}\nfor (const cname of Object.keys(index)) {\n  if (!index[cname].anyLive) {\n    out.push({ json: { finding_type: \"CREDENTIAL_ORPHAN\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: cname, check: \"6-credential-map\", detail: \"credential \\\"\" + cname + \"\\\" is referenced only by unpublished or archived workflows: \" + index[cname].workflows.join(\", \") } });\n  }\n}\nout.push({ json: { finding_type: \"CREDENTIAL_INDEX\", severity: \"INFO\", workflow_id: \"\", workflow_name: \"instance\", check: \"6-credential-map\", detail: JSON.stringify(index) } });\nreturn out;"
+      },
+      "id": "1be119b9-6efd-446d-be0c-a2c1cdb722cc",
+      "name": "Map Credential Usage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, 608],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_api_probes" },
+        "returnAll": true
+      },
+      "id": "3a083cae-ccd1-4296-83f6-13ebc9690b4e",
+      "name": "Read API Probes",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [-784, 800],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "={{ $json.url }}",
+        "options": { "response": { "response": { "fullResponse": true, "neverError": true } }, "timeout": 15000 }
+      },
+      "id": "b8e98874-d073-4e76-b74f-6b4a1c3c588e",
+      "name": "Run Vendor Probes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-560, 800],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const probesRaw = $(\"Read API Probes\").all();\nconst probes = [];\nfor (const p of probesRaw) { if (p.json && p.json.probe_name) probes.push(p.json); }\nif (probes.length === 0) {\n  return [{ json: { finding_type: \"PROBES_EMPTY\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: \"instance\", check: \"7-vendor-probes\", detail: \"sentinel_api_probes is empty, so no vendor endpoint was probed this run.\" } }];\n}\nconst res = $input.all();\nconst out = [];\nfor (let i = 0; i < probes.length; i++) {\n  const p = probes[i];\n  const r = res[i] ? res[i].json : null;\n  if (!r || r.error) {\n    out.push({ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: p.vendor, check: \"7-vendor-probes\", detail: \"probe \" + p.probe_name + \" could not run: \" + (r && r.error ? (r.error.message || \"request error\") : \"no response\") } });\n    continue;\n  }\n  const actual = r.statusCode !== undefined ? r.statusCode : 0;\n  const expected = Number(p.expected_status) || 200;\n  if (actual !== expected) {\n    out.push({ json: { finding_type: \"VENDOR_PROBE_FAIL\", severity: \"HIGH\", workflow_id: \"\", workflow_name: p.vendor, check: \"7-vendor-probes\", detail: p.vendor + \" probe \" + p.probe_name + \" returned \" + actual + \" expected \" + expected } });\n  }\n}\nreturn out;"
+      },
+      "id": "75ea0c3d-5db1-4492-ab6b-bd97132525b4",
+      "name": "Compare Probe Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-336, 800],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst CHECKS = [\"1-silent-trigger\", \"2-hung-executions\", \"3-error-spike\", \"4-retention\", \"5-dod-lint\", \"6-credential-map\", \"7-vendor-probes\"];\nconst ran = {};\ntry { $(\"Detect Silent Triggers\").all(); ran[\"1-silent-trigger\"] = true; } catch (e) { }\ntry { $(\"Detect Hung Executions\").all(); ran[\"2-hung-executions\"] = true; } catch (e) { }\ntry { $(\"Detect Error Spikes\").all(); ran[\"3-error-spike\"] = true; } catch (e) { }\ntry { $(\"Detect Retention Breach\").all(); ran[\"4-retention\"] = true; } catch (e) { }\ntry { $(\"Lint Definition Of Done\").all(); ran[\"5-dod-lint\"] = true; } catch (e) { }\ntry { $(\"Map Credential Usage\").all(); ran[\"6-credential-map\"] = true; } catch (e) { }\ntry { $(\"Compare Probe Status\").all(); ran[\"7-vendor-probes\"] = true; } catch (e) { }\nconst owners = {};\ntry {\n  const reg = $(\"Read Trigger Registry\").all();\n  for (const r of reg) { if (r.json && r.json.workflow_id) owners[r.json.workflow_id] = r.json.owner; }\n} catch (e) { }\nconst nowIso = new Date().toISOString();\nconst day = nowIso.slice(0, 10);\nconst findings = [];\nconst blind = {};\nfor (const it of items) {\n  const f = it.json || {};\n  if (!f.finding_type) continue;\n  if (f.finding_type === \"CHECK_BLIND\" && f.check) blind[f.check] = true;\n  const wid = f.workflow_id === undefined || f.workflow_id === null ? \"\" : String(f.workflow_id);\n  const suffix = f.check ? \":\" + f.check : \"\";\n  const key = f.finding_type === \"CREDENTIAL_INDEX\" ? \"CREDENTIAL_INDEX:\" + day : f.finding_type + \":\" + wid + suffix + \":\" + day;\n  findings.push({ json: {\n    finding_key: key,\n    finding_type: String(f.finding_type),\n    severity: String(f.severity || \"MEDIUM\"),\n    workflow_id: wid,\n    workflow_name: String(f.workflow_name || wid || \"instance\"),\n    detail: String(f.detail || \"\"),\n    detected_at: nowIso,\n    owner: String(f.owner || owners[wid] || \"unassigned\")\n  } });\n}\nfor (const c of CHECKS) {\n  if (!ran[c]) {\n    blind[c] = true;\n    findings.push({ json: { finding_key: \"CHECK_SILENT:\" + c + \":\" + day, finding_type: \"CHECK_SILENT\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: c, detail: \"check \" + c + \" never executed this run - it was skipped, not clean. A branch that does not run cannot be trusted to say all clear.\", detected_at: nowIso, owner: \"platform\" } });\n  }\n}\nconst blindList = Object.keys(blind);\nconst blindCount = blindList.length;\nconst checksOk = CHECKS.length - blindCount;\nconst bySev = {};\nconst byType = {};\nfor (const f of findings) {\n  if (f.json.severity === \"INFO\") continue;\n  bySev[f.json.severity] = (bySev[f.json.severity] || 0) + 1;\n  byType[f.json.finding_type] = (byType[f.json.finding_type] || 0) + 1;\n}\nlet status = bySev.CRITICAL ? \"RED\" : (bySev.HIGH ? \"AMBER\" : \"GREEN\");\nif (blindCount > 0 && status === \"GREEN\") status = \"AMBER\";\nconst real = [];\nfor (const f of findings) { if (f.json.severity !== \"INFO\") real.push(f); }\nconst order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };\nreal.sort(function (a, b) { return (order[a.json.severity] === undefined ? 9 : order[a.json.severity]) - (order[b.json.severity] === undefined ? 9 : order[b.json.severity]); });\nconst top = real.slice(0, 10);\nconst lines = [];\nfor (const t of top) { lines.push(\"- [\" + t.json.severity + \"] \" + t.json.finding_type + \" - \" + t.json.workflow_name + \" - \" + t.json.detail); }\nconst sevLine = Object.keys(bySev).map(function (k) { return k + \": \" + bySev[k]; }).join(\", \") || \"none\";\nconst coverage = checksOk + \" of \" + CHECKS.length + \" checks completed\";\nconst coverageWarn = blindCount > 0 ? (\"\\nBLIND: \" + blindList.join(\", \") + \" - this run did NOT verify those areas\") : \"\";\nconst alertText = \"Platform Sentinel: \" + status + \"\\nCoverage: \" + coverage + coverageWarn + \"\\nSeverity counts - \" + sevLine + \"\\nTotal findings: \" + real.length + \"\\n\\n\" + lines.join(\"\\n\");\nfindings.push({ json: { finding_type: \"SUMMARY\", status: status, counts_by_severity: bySev, counts_by_type: byType, total_findings: real.length, checks_total: CHECKS.length, checks_ok: checksOk, checks_blind: blindCount, blind_checks: blindList, coverage: coverage, detected_at: nowIso, alert_text: alertText } });\nreturn findings;"
+      },
+      "id": "2bb6b2eb-1bf4-4dec-89fa-7c6b7c1f133f",
+      "name": "Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [144, 208]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.finding_type }}", "operator": { "type": "string", "operation": "notEquals" }, "rightValue": "SUMMARY" }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "52810668-3c4e-4cc2-a380-97b7baef1be7",
+      "name": "Findings Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [368, 80]
+    },
+    {
+      "parameters": {
+        "operation": "rowNotExists",
+        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_findings" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [{ "keyName": "finding_key", "keyValue": "={{ $json.finding_key }}" }] }
+      },
+      "id": "ac747112-06a3-40cd-93a1-994db4b21e08",
+      "name": "Only New Findings Today",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [592, 80],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_findings" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "finding_key": "={{ $json.finding_key }}",
+            "finding_type": "={{ $json.finding_type }}",
+            "severity": "={{ $json.severity }}",
+            "workflow_id": "={{ $json.workflow_id }}",
+            "detail": "={{ $json.detail }}",
+            "detected_at": "={{ $json.detected_at }}",
+            "owner": "={{ $json.owner }}"
+          },
+          "schema": [
+            { "id": "finding_key", "displayName": "finding_key", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "finding_type", "displayName": "finding_type", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "severity", "displayName": "severity", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "workflow_id", "displayName": "workflow_id", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "detail", "displayName": "detail", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "detected_at", "displayName": "detected_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "owner", "displayName": "owner", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "70d60669-ceec-48cb-9a4d-e976e4bc9ee9",
+      "name": "Write Findings",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [800, 80],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "conditions": [
+            { "id": "d1", "leftValue": "={{ $json.finding_type }}", "operator": { "type": "string", "operation": "equals" }, "rightValue": "SUMMARY" },
+            { "id": "d2", "leftValue": "={{ $json.status }}", "operator": { "type": "string", "operation": "notEquals" }, "rightValue": "GREEN" }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "283461f4-a607-4f8c-b3a2-462d96969057",
+      "name": "Status RED Or AMBER",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [368, 320]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#platform-alerts" },
+        "text": "={{ $json.alert_text }}",
+        "otherOptions": {}
+      },
+      "id": "e2d2a0e7-844f-40ad-927e-a0d224d8f94a",
+      "name": "Send Consolidated Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [592, 320],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "content": "## 1. Silent trigger death\nActive is not evidence of working. Dead-man switch over the registry.", "height": 184, "width": 1332, "color": 3 },
+      "id": "c797ea85-44c5-4f96-93dd-e685cbbba156",
+      "name": "Sticky Note 43e0e903",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1392, -448]
+    },
+    {
+      "parameters": { "content": "## 2. Hung executions\nNothing reaps a stuck execution in queue mode. Reports only, never cancels.", "height": 184, "width": 1220, "color": 3 },
+      "id": "93e55f34-d772-43f5-982f-d54ef8ab0225",
+      "name": "Sticky Note 927d44ce",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1392, -256]
+    },
+    {
+      "parameters": { "content": "## 3. Error spike\nFailures per workflow inside the lookback window.", "height": 200, "width": 1000, "color": 4 },
+      "id": "b50c3458-d7ef-421c-a44f-0669a51c4336",
+      "name": "Sticky Note ed43a1e2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1088, -48]
+    },
+    {
+      "parameters": { "content": "## 4. Retention and growth guard\nPaged count, capped at 10 pages. Is pruning keeping up?", "height": 200, "width": 1032, "color": 4 },
+      "id": "c06a10c3-5a7c-4b5c-a804-a63613fba1f9",
+      "name": "Sticky Note f512ae12",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1120, 160]
+    },
+    {
+      "parameters": { "content": "## 5. Definition-of-Done lint\nError workflow, timeout, owner tag, registry coverage.", "height": 200, "width": 1508, "color": 5 },
+      "id": "f3766b13-345a-4954-91f7-f8fd4796e468",
+      "name": "Sticky Note 513a606c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1600, 352]
+    },
+    {
+      "parameters": { "content": "## 6. Credential reference map\nAnswers which workflows use this credential - n8n cannot.", "height": 200, "width": 1256, "color": 5 },
+      "id": "a124d212-2025-444a-9c82-23e9c7793ed1",
+      "name": "Sticky Note 2422795d",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1344, 560]
+    },
+    {
+      "parameters": { "content": "## 7. Vendor API contract probes\nStatus code drift against the probe registry.", "height": 200, "width": 1316, "color": 6 },
+      "id": "232fafb4-b63f-4f47-bbb5-9d16e6ac5606",
+      "name": "Sticky Note b9132d0c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1408, 752]
+    },
+    {
+      "parameters": { "content": "## Merge, score, persist, alert\nDeduplicated by type + workflow + day. Silent on GREEN.\nGREEN is unreachable unless all seven checks completed - see docs/07-platform-sentinel.md", "height": 440, "width": 1164, "color": 7 },
+      "id": "93ed208d-89f3-47b0-b2af-f47958fc3f91",
+      "name": "Sticky Note 7a012748",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [112, 16]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": {
+      "main": [[
+        { "node": "Read Trigger Registry", "type": "main", "index": 0 },
+        { "node": "Fetch Recent Executions", "type": "main", "index": 0 },
+        { "node": "Fetch Failed Executions", "type": "main", "index": 0 },
+        { "node": "Fetch All Executions Paged", "type": "main", "index": 0 },
+        { "node": "Fetch Workflows For DoD", "type": "main", "index": 0 },
+        { "node": "Fetch Workflows For Credentials", "type": "main", "index": 0 },
+        { "node": "Read API Probes", "type": "main", "index": 0 }
+      ]]
+    },
+    "Read Trigger Registry": { "main": [[{ "node": "Fetch Last Success Per Workflow", "type": "main", "index": 0 }]] },
+    "Fetch Last Success Per Workflow": { "main": [[{ "node": "Detect Silent Triggers", "type": "main", "index": 0 }]] },
+    "Detect Silent Triggers": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 0 }]] },
+    "Fetch Recent Executions": { "main": [[{ "node": "Detect Hung Executions", "type": "main", "index": 0 }]] },
+    "Detect Hung Executions": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 1 }]] },
+    "Fetch Failed Executions": { "main": [[{ "node": "Detect Error Spikes", "type": "main", "index": 0 }]] },
+    "Detect Error Spikes": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 2 }]] },
+    "Fetch All Executions Paged": { "main": [[{ "node": "Detect Retention Breach", "type": "main", "index": 0 }]] },
+    "Detect Retention Breach": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 3 }]] },
+    "Fetch Workflows For DoD": { "main": [[{ "node": "Lint Definition Of Done", "type": "main", "index": 0 }]] },
+    "Lint Definition Of Done": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 4 }]] },
+    "Fetch Workflows For Credentials": { "main": [[{ "node": "Map Credential Usage", "type": "main", "index": 0 }]] },
+    "Map Credential Usage": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 5 }]] },
+    "Read API Probes": { "main": [[{ "node": "Run Vendor Probes", "type": "main", "index": 0 }]] },
+    "Run Vendor Probes": { "main": [[{ "node": "Compare Probe Status", "type": "main", "index": 0 }]] },
+    "Compare Probe Status": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 6 }]] },
+    "Merge All Checks": { "main": [[{ "node": "Score", "type": "main", "index": 0 }]] },
+    "Score": {
+      "main": [[
+        { "node": "Findings Only", "type": "main", "index": 0 },
+        { "node": "Status RED Or AMBER", "type": "main", "index": 0 }
+      ]]
+    },
+    "Findings Only": { "main": [[{ "node": "Only New Findings Today", "type": "main", "index": 0 }]] },
+    "Only New Findings Today": { "main": [[{ "node": "Write Findings", "type": "main", "index": 0 }]] },
+    "Status RED Or AMBER": { "main": [[{ "node": "Send Consolidated Alert", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 300,
+    "saveDataSuccessExecution": "none"
+  },
+  "pinData": {},
+  "meta": {}
+}
