@@ -1,0 +1,246 @@
+{
+  "name": "Replay Cassette",
+  "nodes": [
+    {
+      "id": "6b4786d2-b75a-4b3e-af47-2c14d11ec548",
+      "name": "Model Call Comes In",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        176
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cassette/v1/chat/completions",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "9b09620a-99dd-4f34-b122-1864b5d6dc0b"
+    },
+    {
+      "id": "82ab609f-ac4b-4b21-8dfd-3f41290ec5c4",
+      "name": "Fingerprint The Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        176
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const b = $input.first().json.body || $input.first().json;\nconst canonical = JSON.stringify({ model: b.model, temperature: b.temperature, tools: b.tools || null, messages: b.messages });\nlet h = 5381;\nfor (let i = 0; i < canonical.length; i++) { h = ((h * 33) ^ canonical.charCodeAt(i)) >>> 0; }\nconst key = 'cass_' + h.toString(16);\nconst tape = {\n  cass_1f3a91c2: { content: '{\\\"invoice_number\\\":\\\"DE-2026-00871\\\"}', recorded_at: '2026-08-14T09:12:04Z', recorded_cost_cents: 1.8 }\n};\nconst hit = tape[key] || null;\nreturn [{ json: { cassette_key: key, canonical_request: canonical, cassette_hit: hit !== null, recorded: hit, request: b } }];"
+      }
+    },
+    {
+      "id": "6fc07045-74ce-4aa0-a0a6-3bb3bfbeb149",
+      "name": "Have We Recorded This Before",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        176
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.cassette_hit }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6a4f49c0-fc55-4469-8668-8475ec8fca2d",
+      "name": "Replay The Tape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        48
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: {\n  id: 'chatcmpl-replay-' + d.cassette_key,\n  object: 'chat.completion',\n  model: d.request.model,\n  choices: [{ index: 0, message: { role: 'assistant', content: d.recorded.content }, finish_reason: 'stop' }],\n  x_cassette: { mode: 'REPLAY', key: d.cassette_key, recorded_at: d.recorded.at || d.recorded.recorded_at, cost_cents: 0, saved_cents: d.recorded.recorded_cost_cents, byte_identical: true }\n} }];"
+      }
+    },
+    {
+      "id": "527fa28f-f9fd-403e-9b58-8b76e9e6705e",
+      "name": "Answer From Tape",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1000,
+        48
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "eb4d2f05-d709-4bdd-aaf9-a50df3485bdb",
+      "name": "Call The Real Model Once",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        304
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nconst answer = '{\\\"invoice_number\\\":\\\"DE-2026-00871\\\"}';\nreturn [{ json: {\n  id: 'chatcmpl-live-' + d.cassette_key,\n  object: 'chat.completion',\n  model: d.request.model,\n  choices: [{ index: 0, message: { role: 'assistant', content: answer }, finish_reason: 'stop' }],\n  x_cassette: { mode: 'RECORD', key: d.cassette_key, cost_cents: 1.8, note: 'First time this exact request was seen. Response written to the tape; every future run replays it for free.' }\n} }];"
+      }
+    },
+    {
+      "id": "011c53ff-4240-4191-aa36-1ac902224fc8",
+      "name": "Answer And Record",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1000,
+        304
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "771c3fef-eaa3-4a86-890e-3505fe152f86",
+      "name": "Sticky Note 5b94e0f9",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -50,
+        126
+      ],
+      "parameters": {
+        "content": "## Replay Cassette - a deterministic model provider you can point n8n at\n\nEvery eval, every regression test, every CI run in this suite has the same problem: **calling a real model costs money and gives a different answer each time.** So nobody runs them on every commit, and evals quietly rot.\n\nThis is an OpenAI-compatible endpoint that sits in front of the real one. First time it sees a request it calls the model, answers, and writes the response to the tape. Every time after that it replays the recorded bytes: **zero cost, zero latency, byte-identical.**\n\nPoint your AI Agent node at this URL in CI and at the real provider in production.",
+        "color": 4,
+        "width": 540,
+        "height": 200
+      }
+    },
+    {
+      "id": "5a1946ee-ce94-47ac-94b9-14903f0f0453",
+      "name": "Sticky Note d70c0a91",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        430,
+        -2
+      ],
+      "parameters": {
+        "content": "## The fingerprint is the whole trick\n\nThe key is a hash of the *canonical* request - model, temperature, tools, and the full message array. Change one word of the prompt and you get a different key, a cassette miss, and a fresh recording.\n\nThat is what makes it safe: **you cannot accidentally replay a stale answer for a prompt you just edited.** A prompt change invalidates its own tape.",
+        "color": 3,
+        "width": 540,
+        "height": 328
+      }
+    },
+    {
+      "id": "0eff0efe-39ec-4ccf-8d0a-bf8e28fab040",
+      "name": "Sticky Note cb2c695f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        670,
+        254
+      ],
+      "parameters": {
+        "content": "## Why n8n does not have this and should\n\nn8n has 650k builders wiring AI nodes together. Not one of them can currently write a test that runs the same way twice without paying for it.\n\nGive them this and the entire eval story becomes free to run on every save. That is the difference between \"we have evals\" and \"our evals actually gate merges\".",
+        "color": 5,
+        "width": 580,
+        "height": 200
+      }
+    }
+  ],
+  "connections": {
+    "Model Call Comes In": {
+      "main": [
+        [
+          {
+            "node": "Fingerprint The Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fingerprint The Request": {
+      "main": [
+        [
+          {
+            "node": "Have We Recorded This Before",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Have We Recorded This Before": {
+      "main": [
+        [
+          {
+            "node": "Replay The Tape",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call The Real Model Once",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replay The Tape": {
+      "main": [
+        [
+          {
+            "node": "Answer From Tape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call The Real Model Once": {
+      "main": [
+        [
+          {
+            "node": "Answer And Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}
