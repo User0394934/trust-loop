@@ -58,7 +58,8 @@ claimed. Four bugs, an execution log, and the fix that makes GREEN something the
 If you want the one that thinks ahead rather than backwards, open
 [`docs/08-agent-flight-recorder.md`](docs/08-agent-flight-recorder.md). Three open n8n issues mean an AI agent cannot
 prove what it did. That doc works out what breaks *after* those three are fixed, and builds the detectors for the
-second set of problems rather than the first.
+second set of problems rather than the first. Then one of those detectors caught a real case on a live agent run
+that n8n had marked successful, before the fix it was predicting had even shipped. That part is Part 5.
 
 ## How to run these
 

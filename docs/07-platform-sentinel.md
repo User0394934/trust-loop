@@ -378,10 +378,19 @@ but it is not free, and the bug count is the receipt.
 missing, because that happened. I have not verified it fires on a timeout, a 500, or a malformed
 response. The check that catches lies could still be lying in a way I have not provoked yet.
 
-**The alert path is unverified.** The alert node has fired in every run, but with no credential
-attached it swallows its own failure. So the last link in the chain, the part where a human actually
-finds out, has never been proven end to end. That is the highest-priority remaining gap, because
-every other check in this workflow is worthless if the message never arrives.
+**The alert path is proven, but only recently and only once.** For most of this build it was not.
+The alert node fired in every run, and with no credential attached it swallowed its own failure, so
+the last link in the chain, the part where a human actually finds out, was never tested. Every check
+in this workflow is worthless if the message never arrives, which made that the biggest remaining
+gap by some distance and the least interesting thing to work on, which is presumably why it stayed
+open the longest.
+
+It has now been closed. A webhook is attached, a non-CLEAN verdict was forced, and the message
+arrived in a chat channel with the finding readable in it. Worth being precise about what that
+proves: one delivery, on one channel, on a happy path. It does not prove the alert survives the
+channel being down, rate limited, or misconfigured, and the `onError` setting on that node means a
+delivery failure will no longer take the monitor down with it. It will also no longer be loud about
+having failed, which is the same trade this whole document is about, made deliberately this time.
 
 **One key per day may be too coarse in the other direction.** A workflow that dies, gets fixed, and
 dies again on the same day produces one record. That is the correct trade for noise, and the wrong

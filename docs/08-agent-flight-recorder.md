@@ -1,11 +1,16 @@
 # The Agent Flight Recorder, and the bugs that arrive after the fix
 
-This one is a proposal, not a war story. It is built on three open issues in the n8n tracker, a
-guess about what breaks once those three are fixed, and a workflow that tries to catch the second
-set of problems before anyone hits them.
+This started as a proposal rather than a war story. It is built on three open issues in the n8n
+tracker, a guess about what breaks once those three are fixed, and a workflow that tries to catch
+the second set of problems before anyone hits them.
 
-I am putting the reasoning in front of the artifact, because the reasoning is the part I would want
-argued with.
+Then it caught one. On a live agent run, the detector built for a failure mode that does not
+properly exist yet fired on a real example of that failure mode, in an execution n8n had marked
+successful. That is in [Part 5](#part-5-it-caught-one). If you only read one section, read that one,
+because a prediction that comes true is worth more than a prediction that sounds good.
+
+I am putting the reasoning in front of the artifact anyway, because the reasoning is the part I
+would want argued with.
 
 ---
 
@@ -265,7 +270,99 @@ behaviour anyway: append, never overwrite.
 
 ---
 
-## Part 5. The evidence pack, and why it is shaped like that
+## Part 5. It caught one
+
+The section above was written before the recorder had ever been pointed at a real agent. This
+section was written after, and it is the reason I stopped calling this document a proposal.
+
+I ran it against a live agent execution on a real instance. Not a test fixture, not a seeded Code
+node. A customer service agent with real tools, an execution n8n had already marked **success**.
+
+The verdict came back `SUSPECT`:
+
+```
+[HIGH] SILENT_RECOVERY: a tool did not succeed
+       (ToolGetOrderStatus returned "No Orders found for customer id :  ")
+       but the agent answer never mentions any failure or missing data.
+       The agent wrote around a broken step, which reads to the user
+       exactly like success.
+```
+
+Look at the value inside the quotes. `customer id :  ` with nothing after it. The agent called its
+order lookup tool with an empty customer ID, the tool answered honestly that it could not find
+anything, and the agent replied to the customer with *"Sure thing! Could you please confirm the
+exact order number..."*.
+
+Read that reply on its own and it is a perfectly good sentence. It sounds careful. It sounds like an
+assistant being thorough. Nothing about it suggests that a lookup just came back empty because the
+agent passed nothing into it.
+
+Three separate things were saying everything was fine:
+
+- n8n marked the execution **success**, because nothing threw
+- the tool returned **HTTP 200**, because "no orders found" is a valid answer to a query
+- the agent's reply was **fluent and helpful**, because that is what these models are good at
+
+The agent's own system prompt told it to tell the user when it could not retrieve information. It
+did not. And there was no red anywhere for anyone to notice.
+
+This is exactly the failure predicted in Move 3 above, which is the odd part, because the fix that
+was supposed to *cause* that failure has not shipped yet. Issue #24042 is still open. The agent got
+there on its own, without the platform's help, by treating an unhelpful-but-valid tool response the
+same way it would treat an error. Which means the prediction was not just right about the mechanism,
+it was conservative about the timing.
+
+### Two bugs that only real data could have found
+
+The first run against this execution reported `NO_AGENT_OUTPUT` and found nothing at all. Both
+reasons were things no amount of thinking would have surfaced.
+
+**The ledger was reading the wrong place.** Tool sub-nodes do not put their output where ordinary
+nodes do. A normal node writes to `main`; an agent's tool writes to `ai_tool`. The recorder read
+`main`, found nothing, and recorded every tool call as having returned empty. It was not that the
+extraction logic was subtly wrong, it was looking at a different part of the record entirely, and
+because "empty" is a legitimate result it reported that with total confidence.
+
+**Success was being read off the wrong signal.** The first version decided a tool call was fine if
+n8n had not marked the node as failed. But this tool did not fail. It returned 200 with a body
+saying it had found nothing. By the only signal being checked, a tool that had completely failed to
+do its job looked perfectly healthy.
+
+That second bug is the interesting one, because it is the exact defect the recorder exists to catch,
+committed by the recorder itself. I built a tool to notice when a green tick is hiding a failure,
+and the first version of it decided whether tools succeeded by looking at their green ticks.
+
+The fix is to read the payload as well as the status. A tool call counts as successful only if the
+node did not fail **and** its returned data does not contain an error. Once that landed, the
+`SILENT_RECOVERY` above appeared immediately. It had been sitting in that execution the whole time.
+
+```mermaid
+flowchart TD
+    A["Agent run<br/>n8n says: success ✅"] --> B["Recorder v1<br/>reads main, trusts status"]
+    B --> C["NO_AGENT_OUTPUT<br/><i>saw nothing, said nothing</i>"]
+    A --> D["Recorder v2<br/>reads ai_tool, inspects payload"]
+    D --> E["SILENT_RECOVERY (HIGH)<br/><i>empty customer id, agent never said</i>"]
+    style C fill:#7f8c8d,color:#fff
+    style E fill:#e67e22,color:#fff
+```
+
+### The alert has now actually been delivered
+
+One more thing that was unproven for a long time, and I would rather write down that it was
+unproven than quietly present the finished version.
+
+Every finding described in these documents was, for most of the build, going nowhere. The alert node
+existed, the verdict logic worked, and no message had ever reached a human. A detector that fires
+into a void is not a monitor, it is a diary. So the last step was the boring one: attach a real
+webhook, force a non-CLEAN verdict, and confirm a message arrives.
+
+It arrives. The `SILENT_RECOVERY` above is the message, delivered to a chat channel, naming the tool
+and quoting what it returned. That was the last claim in this repo that rested on "it should work",
+and it does not rest on that any more.
+
+---
+
+## Part 6. The evidence pack, and why it is shaped like that
 
 Each run produces one stored pack: the execution it covers, the verdict, how many tools ran, how
 many claims were made, how many were unsupported, the coverage statement, the findings, and a
@@ -286,7 +383,7 @@ someone who was not there and does not trust you.
 
 ---
 
-## Part 6. What it cannot do
+## Part 7. What it cannot do
 
 Same spirit as [`06-limitations.md`](06-limitations.md). If I were reviewing this, these are the
 holes I would go for.
@@ -307,10 +404,11 @@ or a model.
 **It cannot see actions taken outside n8n.** If the agent's tool is a sub-workflow that calls a
 service which does the real work, the recorder sees the sub-workflow ran, not what the service did.
 
-**It has never seen a real agent run.** The workflow has been executed and its blindness detector
-fires correctly, but the tool ledger has not yet been built from a live agent with real tool calls.
-Until it has, the extraction logic is untested against the thing it was written for. That is the
-first thing to fix and I would rather say so than let a diagram imply otherwise.
+**One real agent run is not a track record.** Part 5 is a single live execution on a single instance,
+with one tool type, and it exercised exactly one of the eight detectors. `SILENT_RECOVERY` has now
+fired in anger. The other seven have not. `FABRICATED_ACTION`, `DUPLICATE_SIDE_EFFECT` and
+`INJECTION_ECHO` in particular are still hypotheses, and the two bugs that one execution exposed are
+a fair warning about how many more are waiting in agent shapes I have not run it against yet.
 
 **The premortem is reasoning, not evidence.** Part 3 is a prediction about second-order effects.
 Some of it will be wrong. It is written down so it can be checked later, which is the only useful
@@ -323,15 +421,17 @@ that would fix it is the obvious next piece.
 
 ---
 
-## Part 7. What I would build next, in order
+## Part 8. What I would build next, in order
 
-1. **Run it against a real agent.** Everything else is theory until the ledger has been rebuilt from
-   a live run with real tool calls.
+1. **Fire the other seven detectors deliberately.** `SILENT_RECOVERY` proved itself on live data.
+   The rest have not. Feed a tool output containing "ignore previous instructions" and confirm
+   `INJECTION_ECHO`. Force a timeout and retry and confirm `DUPLICATE_SIDE_EFFECT`. A detector that
+   has never fired in anger is a hypothesis wearing a severity label.
 2. **A tool registry** declaring which tools are idempotent and which have real-world side effects.
    That single table sharpens `DUPLICATE_SIDE_EFFECT`, `FABRICATED_ACTION` and `RETRY_STORM` at once.
-3. **Deliberately break things and confirm the detectors fire.** Force a tool failure and confirm
-   `SILENT_RECOVERY`. Feed a tool output containing "ignore previous instructions" and confirm
-   `INJECTION_ECHO`. A detector that has never fired in anger is a hypothesis.
+3. **Run it against agent shapes it has not seen.** One execution found two bugs. Sub-workflow tools,
+   vector store tools and multi-step tool chains are all still unexamined, and the pattern so far is
+   that each new shape teaches the extraction logic something it got wrong.
 4. **Trend the packs.** One pack is an incident. A thousand packs answer the question worth asking,
    which is whether this agent is getting more honest or less over time.
 
@@ -343,3 +443,6 @@ Three open issues mean an n8n agent cannot prove what it did. The evidence still
 execution record, so you can rebuild the ledger today without waiting for a fix. And the more
 interesting problems are the ones that arrive *after* the fix, when a crash becomes a graceful
 recovery and a graceful recovery becomes a confident sentence that nobody can check.
+
+I wrote that paragraph as a prediction. Then the recorder found one, in a live run, in an execution
+marked successful, before the fix that was supposed to cause it had even shipped.
