@@ -1,0 +1,13 @@
+# Local n8n state — never commit credentials or execution data
+.env
+.env.*
+*.credentials.json
+.n8n/
+node_modules/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
