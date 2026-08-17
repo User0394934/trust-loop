@@ -425,7 +425,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": { "content": "## 1. Silent trigger death\nActive is not evidence of working. Dead-man switch over the registry.", "height": 184, "width": 1332, "color": 3 },
+      "parameters": { "content": "## 1. Silent trigger death\nActive is not evidence of working. n8n-io/n8n #36388, #30871, #13646, #36075 are all open. Dead-man switch over the registry.", "height": 184, "width": 1332, "color": 3 },
       "id": "c797ea85-44c5-4f96-93dd-e685cbbba156",
       "name": "Sticky Note 43e0e903",
       "type": "n8n-nodes-base.stickyNote",
@@ -433,7 +433,7 @@
       "position": [-1392, -448]
     },
     {
-      "parameters": { "content": "## 2. Hung executions\nNothing reaps a stuck execution in queue mode. Reports only, never cancels.", "height": 184, "width": 1220, "color": 3 },
+      "parameters": { "content": "## 2. Hung executions\nn8n-io/n8n #36343 (open): workflow execution timeout is not enforced in queue mode when a node hangs. Reports only, never cancels.", "height": 184, "width": 1220, "color": 3 },
       "id": "93e55f34-d772-43f5-982f-d54ef8ab0225",
       "name": "Sticky Note 927d44ce",
       "type": "n8n-nodes-base.stickyNote",
@@ -465,7 +465,7 @@
       "position": [-1600, 352]
     },
     {
-      "parameters": { "content": "## 6. Credential reference map\nAnswers which workflows use this credential - n8n cannot.", "height": 200, "width": 1256, "color": 5 },
+      "parameters": { "content": "## 6. Credential reference map\nNote: n8n already does this. `n8n audit` reports credentials not used in a workflow, and credentials carry a Used by workflows list. This branch reimplements it so the result lands in the same findings table and severity model as the other six. See docs/07-platform-sentinel.md.", "height": 200, "width": 1256, "color": 5 },
       "id": "a124d212-2025-444a-9c82-23e9c7793ed1",
       "name": "Sticky Note 2422795d",
       "type": "n8n-nodes-base.stickyNote",
