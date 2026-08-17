@@ -1,0 +1,286 @@
+{
+  "name": "Trust Ledger",
+  "nodes": [
+    {
+      "id": "c11f2868-e0f8-408e-959b-1d94d143d86d",
+      "name": "Rescore The Library Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        208
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "39d69bbd-b383-4047-91ea-b473e1cbf4a2",
+      "name": "Pull The Signals Only n8n Can See",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        208
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const templates = [\n  { id: 't_1188', title: 'AI email triage to Sheets', installs: 41200, has_evals: true, eval_pass: 0.97, fuzz_survival: 0.91, injection_resistance: 0.88, cost_variance: 0.12, days_since_verified: 6, incidents_90d: 1 },\n  { id: 't_2054', title: 'Autonomous invoice payer', installs: 8800, has_evals: false, eval_pass: 0, fuzz_survival: 0.34, injection_resistance: 0.29, cost_variance: 0.71, days_since_verified: 402, incidents_90d: 17 },\n  { id: 't_3391', title: 'RAG over your Notion', installs: 26500, has_evals: true, eval_pass: 0.82, fuzz_survival: 0.64, injection_resistance: 0.41, cost_variance: 0.38, days_since_verified: 88, incidents_90d: 6 },\n  { id: 't_4407', title: 'Slack standup summariser', installs: 15900, has_evals: true, eval_pass: 0.94, fuzz_survival: 0.87, injection_resistance: 0.79, cost_variance: 0.09, days_since_verified: 21, incidents_90d: 0 }\n];\nreturn [{ json: { templates: templates } }];"
+      }
+    },
+    {
+      "id": "28c746ef-3ba8-43e3-902d-2ba4c44b3e9d",
+      "name": "Compute The Trust Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        208
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nconst scored = d.templates.map(function (t) {\n  const freshness = Math.max(0, 1 - (t.days_since_verified / 180));\n  const incidentDrag = Math.max(0, 1 - (t.incidents_90d / 10));\n  const raw = (t.eval_pass * 0.30) + (t.fuzz_survival * 0.20) + (t.injection_resistance * 0.20) +\n              ((1 - Math.min(1, t.cost_variance)) * 0.10) + (freshness * 0.10) + (incidentDrag * 0.10);\n  const capped = t.has_evals ? raw : Math.min(raw, 0.49);\n  const pct = Math.round(capped * 100);\n  let grade = 'D';\n  if (pct >= 85) { grade = 'A'; } else if (pct >= 70) { grade = 'B'; } else if (pct >= 55) { grade = 'C'; }\n  const weakest = [\n    { k: 'no evals at all', v: t.has_evals ? 1 : 0 },\n    { k: 'falls over on malformed input', v: t.fuzz_survival },\n    { k: 'prompt injection gets through', v: t.injection_resistance },\n    { k: 'cost swings wildly per run', v: 1 - Math.min(1, t.cost_variance) },\n    { k: 'not verified in months', v: freshness }\n  ].sort(function (a, b) { return a.v - b.v; })[0];\n  return { id: t.id, title: t.title, installs: t.installs, trust: pct, grade: grade,\n    biggest_problem: weakest.k, exposed_installs: grade === 'D' ? t.installs : 0 };\n});\nconst risky = scored.filter(function (s) { return s.grade === 'D'; });\nconst exposed = scored.reduce(function (a, s) { return a + s.exposed_installs; }, 0);\nconst worst = scored.slice().sort(function (a, b) { return a.trust - b.trust; })[0];\nconst say = 'The template library has no quality signal on it at all today - a template with 8,800 installs and 17 incidents looks exactly like one with 41,200 installs and zero. ' +\n  'Scoring them puts ' + risky.length + ' in the danger band, covering ' + exposed + ' installs. ' +\n  'Worst is \\\"' + worst.title + '\\\" at ' + worst.trust + '/100: ' + worst.biggest_problem + '. ' +\n  'A template with no evals is capped at 49 no matter how popular it is, because popularity is not evidence.';\nconst headline = risky.length > 2 ? 'crisis' : (risky.length > 0 ? 'flagged' : 'healthy');\nreturn [{ json: { plain_english: say, headline: headline, ledger: scored, exposed_installs: exposed } }];"
+      }
+    },
+    {
+      "id": "fcb0fbf8-59e9-4393-a204-a9076ecac4e5",
+      "name": "How Bad Is The Library",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        760,
+        208
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "crisis",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1",
+                    "leftValue": "={{ $json.headline }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "crisis"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "flagged",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b2",
+                    "leftValue": "={{ $json.headline }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "flagged"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "outputKey": "healthy",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b3",
+                    "leftValue": "={{ $json.headline }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "healthy"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "eafdd5e2-ec8e-44fa-99c3-7735680e18c8",
+      "name": "DELIST: Too Many Templates Below The Bar",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        32
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f4a0ba03-c23c-4752-81be-c75cf313dd2a",
+      "name": "BADGE: Publish Grades And Notify Authors",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        208
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a6bf7dbd-b3a3-4e1d-9193-515ae82d8059",
+      "name": "HEALTHY: Publish The Ledger",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        384
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "75db1db3-cb3b-4aa6-bc27-a853e43b220a",
+      "name": "Sticky Note 189e6b4f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -50,
+        158
+      ],
+      "parameters": {
+        "content": "## Trust Ledger - a grade on every template in the library\n\nRight now n8n's library sorts by popularity. A template with 8,800 installs and 17 incidents looks identical to one with 41,200 installs and none. Install count is a measure of marketing, not of whether the thing works.\n\nThis computes a trust score per template from six signals and publishes it as a grade: **eval pass rate, fuzz survival, injection resistance, cost variance, days since last verified, and 90-day incident count.**",
+        "color": 4,
+        "width": 540,
+        "height": 200
+      }
+    },
+    {
+      "id": "dabad53c-fd0d-4382-a91b-e4e1f4787460",
+      "name": "Sticky Note 59d0b509",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        430,
+        158
+      ],
+      "parameters": {
+        "content": "## The rule that makes it honest\n\n**A template with no evals is capped at 49/100 no matter how popular it is.**\n\nPopularity is not evidence. The cap is what turns the badge from a vanity metric into an incentive: the only way past a C is to write the evals, and the platform hands you the harness to do it.\n\nThat is how you get 650k builders to adopt eval practice without ever writing a docs page about why they should.",
+        "color": 3,
+        "width": 580,
+        "height": 200
+      }
+    },
+    {
+      "id": "9058dd3b-1caf-4762-aac3-e460ca271886",
+      "name": "Sticky Note 7e13abde",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        970,
+        -18
+      ],
+      "parameters": {
+        "content": "## Why this is a ten-year moat and not a feature\n\nAnyone can host templates. **Only n8n can grade them**, because only n8n sees the executions - the failures, the retries, the cost curves, the injection attempts, across every install of every template.\n\nThat data exists today and is thrown away. Turn it into a public trust signal and the library stops being a gallery and becomes the thing enterprises are actually buying: **automation you can prove is safe to depend on.**",
+        "color": 5,
+        "width": 300,
+        "height": 376
+      }
+    }
+  ],
+  "connections": {
+    "Rescore The Library Daily": {
+      "main": [
+        [
+          {
+            "node": "Pull The Signals Only n8n Can See",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull The Signals Only n8n Can See": {
+      "main": [
+        [
+          {
+            "node": "Compute The Trust Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute The Trust Score": {
+      "main": [
+        [
+          {
+            "node": "How Bad Is The Library",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "How Bad Is The Library": {
+      "main": [
+        [
+          {
+            "node": "DELIST: Too Many Templates Below The Bar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BADGE: Publish Grades And Notify Authors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HEALTHY: Publish The Ledger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}

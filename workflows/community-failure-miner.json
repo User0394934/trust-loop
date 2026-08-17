@@ -1,0 +1,244 @@
+{
+  "name": "Community Failure Miner",
+  "nodes": [
+    {
+      "id": "a54d4f6c-e836-443d-b23c-a93acd7ca540",
+      "name": "Before Monday Planning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        208
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "924235c9-c870-4fea-a01d-fd5db3b6d385",
+      "name": "Gather What The Community Reported",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        208
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const reports = [\n  { src: 'forum', text: 'Agent loops forever calling the same tool', sev: 4, age_days: 2, votes: 61 },\n  { src: 'github', text: 'AI Agent repeats tool call until timeout', sev: 4, age_days: 9, votes: 34 },\n  { src: 'forum', text: 'Same tool called over and over, burns my credits', sev: 5, age_days: 1, votes: 88 },\n  { src: 'forum', text: 'Model returns text not JSON and node crashes', sev: 3, age_days: 4, votes: 45 },\n  { src: 'github', text: 'Structured output parser fails on markdown fences', sev: 3, age_days: 30, votes: 22 },\n  { src: 'discord', text: 'Cannot tell why the agent chose that tool', sev: 2, age_days: 6, votes: 71 },\n  { src: 'forum', text: 'No way to see the reasoning behind a tool choice', sev: 2, age_days: 14, votes: 39 },\n  { src: 'github', text: 'Credentials leaked into the execution log', sev: 5, age_days: 3, votes: 12 },\n  { src: 'forum', text: 'My OpenAI bill tripled overnight and I cannot see why', sev: 4, age_days: 5, votes: 57 }\n];\nreturn [{ json: { reports: reports, window: 'last 30 days' } }];"
+      }
+    },
+    {
+      "id": "60fcb69e-b40e-4087-99da-3463f029eb62",
+      "name": "Cluster Into Failure Modes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        208
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nconst themes = [\n  { theme: 'Agent loops on the same tool until it burns budget', match: ['loop','over and over','repeats'] },\n  { theme: 'Model returns prose where the workflow expects JSON', match: ['not json','markdown fences','parser'] },\n  { theme: 'No visibility into why a tool was chosen', match: ['why the agent','reasoning'] },\n  { theme: 'Secrets and prompt bodies reaching the execution log', match: ['leaked','log'] },\n  { theme: 'Spend moves without an explanation', match: ['bill','credits'] }\n];\nconst out = themes.map(function (t) {\n  const hits = d.reports.filter(function (r) {\n    const s = r.text.toLowerCase();\n    return t.match.some(function (m) { return s.indexOf(m) !== -1; });\n  });\n  const votes = hits.reduce(function (a, r) { return a + r.votes; }, 0);\n  const sev = hits.length ? hits.reduce(function (a, r) { return a + r.sev; }, 0) / hits.length : 0;\n  const recency = hits.length ? hits.reduce(function (a, r) { return a + Math.max(0, 1 - r.age_days / 30); }, 0) / hits.length : 0;\n  const sources = hits.map(function (r) { return r.src; });\n  const distinct = sources.filter(function (v, i) { return sources.indexOf(v) === i; });\n  return { theme: t.theme, reports: hits.length, votes: votes, avg_severity: Number(sev.toFixed(1)),\n    recency: Number(recency.toFixed(2)), sources: distinct.length,\n    pressure: Number((hits.length * sev * (1 + recency) * (1 + (distinct.length - 1) * 0.5)).toFixed(1)) };\n}).filter(function (t) { return t.reports > 0; })\n  .sort(function (a, b) { return b.pressure - a.pressure; });\nreturn [{ json: { failure_modes: out } }];"
+      }
+    },
+    {
+      "id": "d962da81-b85d-4e8d-b429-08a2724fde3c",
+      "name": "Write The Monday Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        208
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d = $input.first().json;\nconst owners = {\n  'Agent loops on the same tool until it burns budget': 'AI Trust - guardrails and reliability',\n  'Model returns prose where the workflow expects JSON': 'AI Trust - evals and output contracts',\n  'No visibility into why a tool was chosen': 'AI Trust - traces and observability',\n  'Secrets and prompt bodies reaching the execution log': 'AI Trust - guardrails',\n  'Spend moves without an explanation': 'AI Trust - cost'\n};\nconst top = d.failure_modes.slice(0, 5).map(function (f, i) {\n  return { rank: i + 1, theme: f.theme, pressure: f.pressure, reports: f.reports, votes: f.votes,\n    cross_source: f.sources > 1, owner: owners[f.theme] || 'unassigned' };\n});\nconst lead = top[0];\nconst crossSource = top.filter(function (t) { return t.cross_source; });\nconst say = 'Ranked by pressure - reports x severity, weighted for recency and for showing up in more than one place. ' +\n  'This week the top failure mode is: ' + lead.theme + ' (' + lead.reports + ' reports, ' + lead.votes + ' votes). ' +\n  crossSource.length + ' of the top ' + top.length + ' appear on more than one channel, which is the signal that separates a real defect from one loud user. ' +\n  'Nothing here came from a roadmap workshop. It is what 650,000 builders hit this month, sorted.';\nreturn [{ json: { plain_english: say, top_five: top, lead_theme: lead.theme, cross_source_count: crossSource.length, actionable: crossSource.length > 0 } }];"
+      }
+    },
+    {
+      "id": "3ed94fa1-3da3-4d41-bc5f-b5b8502b105e",
+      "name": "Confirmed On More Than One Channel",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        208
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.actionable }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dc037880-5c09-425d-8cae-f82c945bcdfc",
+      "name": "INTO THE SPRINT: Evidence-Backed Roadmap Item",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        80
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "4be0ccc5-f581-46d2-80db-77184a03b35a",
+      "name": "WATCH: Single-Channel, Not Yet A Pattern",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        336
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2b56347f-5225-4630-9721-38f5f854ddee",
+      "name": "Sticky Note df25286f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -50,
+        158
+      ],
+      "parameters": {
+        "content": "## Community Failure Miner - the roadmap writes itself\n\nn8n has 650,000 builders and 190,000 GitHub stars. They are, collectively, running the largest AI reliability experiment in Europe and reporting the results for free across the forum, GitHub and Discord.\n\nMost of that is read by whoever happens to be on support that day, and none of it is ranked.\n\nThis pulls the reports, clusters them into failure modes, and ranks them by **pressure** - reports x severity, weighted for recency and for appearing on more than one channel.",
+        "color": 4,
+        "width": 540,
+        "height": 200
+      }
+    },
+    {
+      "id": "6c52afc3-59d5-49d3-82c3-f2fd533886a4",
+      "name": "Sticky Note 74d0b02c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        430,
+        158
+      ],
+      "parameters": {
+        "content": "## Cross-channel is the signal, votes are not\n\nOne loud person on the forum can out-vote a real defect. The same complaint appearing independently on GitHub *and* the forum *and* Discord almost never happens by accident.\n\nSo the multiplier is on **distinct sources**, not on upvotes. A three-source cluster with eight reports beats a one-source cluster with two hundred votes, every time.",
+        "color": 3,
+        "width": 540,
+        "height": 200
+      }
+    },
+    {
+      "id": "a8fbce38-a02e-45c7-8452-e921c3c346da",
+      "name": "Sticky Note 98237bce",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        910,
+        30
+      ],
+      "parameters": {
+        "content": "## What this is really for\n\nEvery PM says they are close to users. This is what close actually looks like: on Monday morning, before planning, a ranked list of what the community broke last week, with the owning workstream already attached.\n\n**No workshop. No survey. No guessing.** Just the largest builder community in open-source automation, sorted by how much pain each thing caused.",
+        "color": 5,
+        "width": 540,
+        "height": 328
+      }
+    }
+  ],
+  "connections": {
+    "Before Monday Planning": {
+      "main": [
+        [
+          {
+            "node": "Gather What The Community Reported",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gather What The Community Reported": {
+      "main": [
+        [
+          {
+            "node": "Cluster Into Failure Modes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cluster Into Failure Modes": {
+      "main": [
+        [
+          {
+            "node": "Write The Monday Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write The Monday Brief": {
+      "main": [
+        [
+          {
+            "node": "Confirmed On More Than One Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmed On More Than One Channel": {
+      "main": [
+        [
+          {
+            "node": "INTO THE SPRINT: Evidence-Backed Roadmap Item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WATCH: Single-Channel, Not Yet A Pattern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": ""
+  }
+}
