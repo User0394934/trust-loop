@@ -1,6 +1,6 @@
 # What I would ship first
 
-Six workflows is a portfolio, not a roadmap. If someone handed me this problem and one engineer, here is the order I
+Eight workflows is a portfolio, not a roadmap. If someone handed me this problem and one engineer, here is the order I
 would go in and why. The reasoning matters more than the order. Argue with it.
 
 ---

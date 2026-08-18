@@ -28,16 +28,16 @@ question is *"can I show that it worked, and would I notice if it stopped?"*
 | 3. Prove | Does it do the job, repeatably, without costing money to check? | **Replay Cassette** |
 | 4. Attack | What happens when the input is hostile or the world is broken? | Non-Determinism Fuzzer |
 | 5. Ship | Is it safe to let this out? | The Airlock, Blast Radius Preflight |
-| 6. Run | Is it still doing the job today? | Silent Success Detector, Agent Intent Drift |
+| 6. Run | Is it still doing the job today? | **Platform Sentinel**, **Agent Flight Recorder**, Silent Success Detector, Agent Intent Drift |
 | 7. Recover | It went wrong. Can we undo it and explain it? | Compensating Rollback |
 | 8. Learn | What did we learn, and who else should benefit? | **Regret Log**, **Trust Ledger**, **Community Failure Miner** |
 
 Stage 8 is what makes it a loop rather than a checklist, and it is the stage almost nobody builds. Draw it as a
 circle, not a pipeline.
 
-The six workflows in **bold** are in `workflows/` as importable JSON. The rest exist in my n8n instance and are
-described in the docs; I have not exported them because they are earlier drafts and I would rather show you six things
-I stand behind than twelve I half-do.
+The eight workflows in **bold** are in `workflows/` as importable JSON. The rest exist in my n8n instance and are
+described in the docs; I have not exported them because they are earlier drafts and I would rather show you eight
+things I stand behind than eighteen I half-do.
 
 ## Start here
 

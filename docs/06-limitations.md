@@ -5,9 +5,10 @@ suspicious if it were missing.
 
 ---
 
-## The big one: five of six workflows have seeded input
+## The big one: five of the eight workflows have seeded input
 
-Only **Replay Cassette** is a live endpoint that takes a real request and produces a real response. The other five run
+**Replay Cassette** is a live endpoint that takes a real request and produces a real response, and **Platform
+Sentinel** and the **Agent Flight Recorder** both read real data from a live n8n instance. The other five run
 end to end — the logic executes, the branching is real, the scoring is real arithmetic on real inputs — but the *inputs*
 are declared in a Code node rather than read from a system.
 
@@ -27,16 +28,16 @@ demonstrate them.
 If a workflow here looks like it is testing something and you find a hardcoded lookup table, that is not me hiding
 it — it is this paragraph.
 
-## Six workflows are described but not exported
+## Nine workflows are described but not exported
 
 The Non-Determinism Fuzzer, The Airlock, Blast Radius Preflight, Silent Success Detector, Agent Intent Drift,
 Compensating Rollback, Data Lineage Tracer, MCP Tool Poisoning Guard and Context Budget Compiler exist in my n8n
-instance. They are earlier drafts, they are less carefully reasoned than these six, and several have the seeded-input
+instance. They are earlier drafts, they are less carefully reasoned than these eight, and several have the seeded-input
 problem in a worse form — the fuzzer in particular contains a fixed table of "how the system reacted" rather than
 actually injecting anything.
 
-I would rather show six things I stand behind than fifteen I half-do. But I am naming them so that "there are eighteen
-workflows" cannot be read as "there are eighteen workflows of this quality." There are six.
+I would rather show eight things I stand behind than eighteen I half-do. But I am naming them so that "there are
+eighteen workflows" cannot be read as "there are eighteen workflows of this quality." There are eight.
 
 ## The scoring formulas are opinions with arithmetic on top
 
@@ -64,7 +65,7 @@ Cassette to test the others, and that would be a good demonstration of the point
    have, so this one is a proposal rather than a task.
 4. Rebuild the Non-Determinism Fuzzer so it actually injects faults into a sub-workflow via Execute Sub-workflow,
    instead of consulting a table of outcomes. That one is a genuine defect, not a scoping decision, and it is the first
-   thing I would fix if I were keeping the other twelve.
+   thing I would fix if I were keeping the other nine.
 
 ## What this repo is evidence of, and what it is not
 

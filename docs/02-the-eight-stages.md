@@ -66,11 +66,18 @@ what is the worst thing it can touch? Records changed, emails sent, money moved.
 
 ## 6. Run: *is it still doing the job today?*
 
-Not exported here.
+**Workflows:** `platform-sentinel.json`, `agent-flight-recorder.json`
 
-The Silent Success Detector watches for the specific pathology from stage 4 appearing in production: executions that
-complete without error but whose output has drifted out of its expected shape or distribution. Agent Intent Drift
-watches whether an agent is still choosing tools for the reasons it used to.
+Platform Sentinel runs seven checks against a live instance on a fifteen-minute schedule and reports what it managed
+to check alongside what it found. The Agent Flight Recorder rebuilds what an agent actually did from the execution
+record and compares that against what the agent claimed, which is how it catches an answer that reads like success
+over a step that failed. Deep dives: [`07-platform-sentinel.md`](07-platform-sentinel.md) and
+[`08-agent-flight-recorder.md`](08-agent-flight-recorder.md).
+
+Also described but not exported. The Silent Success Detector watches for the specific pathology from stage 4
+appearing in production: executions that complete without error but whose output has drifted out of its expected
+shape or distribution. Agent Intent Drift watches whether an agent is still choosing tools for the reasons it used
+to.
 
 Ordinary monitoring alerts on errors and latency. Neither of those fires here.
 
