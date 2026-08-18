@@ -12,10 +12,10 @@ n8n's own AI Product Manager posting opens with this:
 
 > Not everything should be automated. Not everything should be agentic. The magic is knowing what belongs where.
 
-I agree completely, and that is why it bothered me. Nothing in the product helps anyone decide. You open a canvas, you
-drag in an AI Agent node, and there is no moment where the tool asks whether that step needed a model. So people put
-one in "extract the invoice number from this PDF", it works in the demo, and now there is a non-deterministic step in
-the middle of an accounting pipeline.
+I agree completely, and that is why it bothered me. Nothing in the product helps anyone decide, as far as I have
+found. You open a canvas, you drag in an AI Agent node, and there is no moment where the tool asks whether that
+step needed a model. So people put one in "extract the invoice number from this PDF", it works in the demo, and
+now there is a non-deterministic step in the middle of an accounting pipeline.
 
 The interesting failure is not that the AI got something wrong. It is that **AI was used where a regex would have been
 exact** — four thousand times a day, at 1.8 cents a call.

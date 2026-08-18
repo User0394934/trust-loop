@@ -108,15 +108,21 @@ anyone is **less surface area**. A ten-node workflow that a stranger can read wi
 more than a sixty-node one that only I can maintain — and if I am wrong about that, then the Determinism Advisor is
 wrong too, and I would rather find that out in a conversation than hide it behind node count.
 
-Two workflows break that rule, and both earned their size differently.
+Two workflows break that preference, and both earned their size differently.
 
 Platform Sentinel is 33 nodes. Seven independent checks that must converge into a single alert genuinely need the
 parallel-then-merge shape, so the size is defensible. It was not free. Three of the four bugs I found in it were wiring
 and state-handling bugs of exactly the kind a ten-node workflow has no room to contain, and
 [`docs/07-platform-sentinel.md`](docs/07-platform-sentinel.md) is the receipt.
 
-The Agent Flight Recorder is 15 nodes, which is closer to the rule than to the exception. It still shipped with a
+The Agent Flight Recorder is 15 nodes, which is closer to the preference than to the exception. It still shipped with a
 deduplication bug on its second run. Small helps. It does not save you.
+
+I should be careful how hard I state this. Eighteen workflows on one instance is not a sample anyone should
+generalise from, and n8n can see patterns across a very large number of real workflows that I cannot. So this is
+a preference I can defend on my own small evidence, not a finding. The question I would actually want answered is
+whether failure rate correlates with node count in real usage once you control for what the workflow touches, and
+that is a question only someone with the telemetry can settle. If the answer is no, I would like to know.
 
 
 ## Licence

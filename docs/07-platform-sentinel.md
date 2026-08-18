@@ -360,6 +360,11 @@ That third branch is the entire point. **GREEN is now unreachable unless all sev
 completed.** Before the fix, GREEN was the default outcome of total failure. Now it is a claim the
 tool has to earn.
 
+A correction, added later. Every GREEN this document reports was produced by a manual run. Before
+14:30 on 18 August no scheduled execution had ever been recorded, although there is now direct
+evidence that many occurred and were discarded unrecorded. The GREEN at 7 of 7 is real. It was
+produced by hand. See Part 7.
+
 ---
 
 ## Part 5. Honest limitations
@@ -423,6 +428,61 @@ In order, and the order is the argument:
 5. **Split it up.** Seven checks in one workflow made three of my four bugs possible. Seven small
    workflows writing to one findings table would be more nodes overall and less coupling, which is
    what this repo argues for everywhere else.
+
+---
+
+## Part 7. The second time it lied, and why this one is worse
+
+Part 3 is about a status that said GREEN while checking almost nothing. This is the inverse, and I think it is
+the more interesting failure.
+
+From 23:45 on 17 August until 14:18 the following day, the Sentinel reported SILENT_TRIGGER at CRITICAL against
+itself. The detail read "no successful execution in 34 minutes, expected every 15", and the number climbed with
+every run.
+
+It was running the whole time.
+
+The workflow's saveDataSuccessExecution setting was `none`. A scheduled run would fire, complete successfully,
+and n8n would discard the execution record. The executions list showed nothing. Check 1 detects silent trigger
+death by asking the Public API for the last successful execution of each registered workflow. It asked, got
+nothing back, and concluded that its own schedule had died. Given what it could see, that was the right
+conclusion.
+
+The findings table is what proves otherwise, because a run that leaves no execution record still writes rows.
+Four rows fall inside the window where no execution exists:
+
+| `detected_at` | Finding |
+|---|---|
+| `2026-08-17T23:45:14.582Z` | `SILENT_TRIGGER` CRITICAL, "no successful execution in 34 minutes" |
+| `2026-08-18T00:00:16.719Z` | `SILENT_TRIGGER` CRITICAL, "...in 49 minutes" |
+| `2026-08-18T05:15:30.535Z` | `CHECK_BLIND::7-vendor-probes` CRITICAL |
+| `2026-08-18T05:45:14.463Z` | `VENDOR_PROBE_FAIL::7-vendor-probes` HIGH |
+
+The complete execution census for that window is two manual runs of a different workflow, and neither writes to
+this table.
+
+The clock settles it. Those writes land at :45:14, :00:16, :15:30 and :45:14, all on quarter-hour boundaries.
+After the setting was changed to `all`, the first two recorded scheduled runs started at 14:30:11.046 and
+14:45:11.065. Same boundary, same offset, same shape. There are four rows rather than sixty because the dedupe
+suppresses a finding whose key already exists, so rows appear when the finding set changes rather than when the
+workflow runs.
+
+Part 3 was a design gap. The status could not tell "checked and found nothing" apart from "did not check", and
+the fix was to report coverage. This one has no such excuse. The check ran, on schedule, queried the right
+endpoint, parsed the answer correctly, applied the right threshold, and produced a CRITICAL finding by sound
+reasoning. Every step was correct and the conclusion was false, because a configuration setting had removed the
+evidence before the check could see it.
+
+A monitor that reads execution records cannot notice that execution records are not being written. It has no way
+to separate "this workflow has not run" from "this workflow's runs are not being recorded", and through the API
+those two states look identical. That is the same shape as the argument in `01-why-this-exists.md`, where a green
+run and a quietly wrong answer look the same from outside.
+
+What I would change: check 1 should not treat an empty result as evidence of death. It should first establish
+whether the target workflow's settings allow a successful run to be recorded at all, and report CHECK_BLIND
+rather than SILENT_TRIGGER when they do not. Absence of a record is only evidence of absence when records are
+being kept. Until that is fixed the check is sound only on workflows configured to save successful executions,
+and it should say so.
 
 ---
 

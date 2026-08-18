@@ -65,7 +65,10 @@ Cassette to test the others, and that would be a good demonstration of the point
    have, so this one is a proposal rather than a task.
 4. Rebuild the Non-Determinism Fuzzer so it actually injects faults into a sub-workflow via Execute Sub-workflow,
    instead of consulting a table of outcomes. That one is a genuine defect, not a scoping decision, and it is the first
-   thing I would fix if I were keeping the other nine.
+   thing I would fix among the unexported ones.
+5. Make check 1 establish whether a workflow can record a successful run before concluding its trigger is dead.
+   This is the defect described in `07-platform-sentinel.md` Part 7, and it is the one I would fix first, because
+   unlike the fuzzer it produced a wrong answer in real use rather than an untested one.
 
 ## What this repo is evidence of, and what it is not
 
