@@ -551,6 +551,39 @@ What I would change, in order:
 3. Require a probe to fail twice consecutively before it moves the status, so a single flap does not page
    anyone. Flapping is a property of the dependency and should be absorbed by the monitor, not forwarded.
 
+### Fixed, and how it was proven
+
+Items 1 and 2 are done. A one-row Data Table, `sentinel_alert_state`, now holds the last status the
+channel was actually told about, and `Decide Alert` compares the current status against it:
+
+```
+Score -> Summary Only -> Read Alert State -> Decide Alert -> Alert Needed -> Send Consolidated Alert
+                                                          -> Write Alert State
+```
+
+`Status RED Or AMBER` is gone. It gated on non-GREEN, which is exactly why a recovery could never be
+announced: GREEN never reached the alert branch, so the good news had no path. `Summary Only` now
+passes every summary through and the decision about whether to speak is made against remembered state
+rather than against the current status alone.
+
+Proven by forcing the transitions rather than reasoning about them. A probe expecting HTTP 418 from an
+endpoint that returns 200 was added to the registry, then removed:
+
+| run | transition | message sent |
+|---|---|---|
+| 357 | UNKNOWN → GREEN | **no** — first run establishes a baseline, it is not news |
+| 358 | GREEN → AMBER | **yes** — "CHANGED - was GREEN." |
+| 359 | AMBER → AMBER | **no** — this is the bug, and this row is the fix |
+| 361 | AMBER → GREEN | **yes** — "RECOVERED - was AMBER, now GREEN." |
+
+Run 359 is the whole point. Same status, same five findings, one run later, and the channel stayed
+quiet. Before this change that run sent a byte-identical copy of the previous message.
+
+Item 3 is **not** done. A single flap still moves the status, so a dependency that bounces will produce
+a CHANGED and a RECOVERED rather than one steady alarm. That is a large improvement on 96 identical
+messages a day and it is still not the right behaviour, so it stays on the list rather than being
+quietly dropped.
+
 Three failures now, and they rhyme. A status that overstated its coverage, a check that reasoned correctly
 from deleted evidence, and a notification that was correct on every individual message and wrong as a stream.
 None of them were caught by testing the component. All three were caught by leaving it running and reading

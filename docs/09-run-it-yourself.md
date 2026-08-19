@@ -143,9 +143,15 @@ workflow rather than by looking at them. The four unchanged detectors — hung e
 retention, vendor probes — and `Score` were already identical, which is why the status logic described
 in `07` matches what you get here.
 
-Also worth knowing before you wire it to a channel: the alerting has no state, so while something is
-failing it will send the same message every fifteen minutes and say nothing at all when it recovers.
-That is Part 8 of `07`, and it is not fixed yet.
+- **`sentinel_alert_state`** — `state_key`, `last_status`, `changed_at`, `last_alert_at`, all string.
+  Seed it with a single row: `state_key` = `platform`, `last_status` = `UNKNOWN`, the other two empty.
+  This is what stops the alerting repeating itself; without the row the first run simply writes it.
+
+Alerting fires on a **status change**, not on every run — `GREEN → AMBER` speaks, `AMBER → AMBER` stays
+quiet, `AMBER → GREEN` sends an explicit recovery notice, and a 24-hour reminder means silence keeps
+meaning "unchanged" rather than "unwatched". Part 8 of [`07`](07-platform-sentinel.md) has the failure
+that led to it and the four runs that prove it. One caveat still stands: a single flap moves the
+status, so a bouncing dependency produces a CHANGED and a RECOVERED rather than one steady alarm.
 
 ---
 

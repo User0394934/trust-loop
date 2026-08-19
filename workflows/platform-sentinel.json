@@ -721,15 +721,6 @@
                 "operation": "equals"
               },
               "rightValue": "SUMMARY"
-            },
-            {
-              "id": "d2",
-              "leftValue": "={{ $json.status }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              },
-              "rightValue": "GREEN"
             }
           ],
           "combinator": "and"
@@ -737,7 +728,7 @@
         "options": {}
       },
       "id": "283461f4-a607-4f8c-b3a2-462d96969057",
-      "name": "Status RED Or AMBER",
+      "name": "Summary Only",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -761,8 +752,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        592,
-        320
+        944,
+        256
       ],
       "onError": "continueRegularOutput"
     },
@@ -880,7 +871,7 @@
     },
     {
       "parameters": {
-        "content": "## Merge, score, persist, alert\nDeduplicated by type + workflow + day. Silent on GREEN.\nGREEN is unreachable unless all seven checks completed - see docs/07-platform-sentinel.md",
+        "content": "## Merge, score, persist, alert\nFindings dedupe by type + workflow + day. Alerts are separate: they fire on a\nstatus CHANGE, not on every run, and a recovery is announced explicitly.\nSee docs/07 Part 8 for why those are two different problems.",
         "height": 440,
         "width": 1164,
         "color": 7
@@ -893,6 +884,114 @@
         112,
         16
       ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sentinel_alert_state"
+        },
+        "returnAll": true
+      },
+      "id": "aa11bb22-cc33-4d44-8e55-f66677788899",
+      "name": "Read Alert State",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        256
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "notes": "One row, state_key=platform. Holds the last status the channel was actually told about."
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $(\"Summary Only\").first().json;\nconst rows = $input.all();\nlet prev = { last_status: \"UNKNOWN\", changed_at: \"\", last_alert_at: \"\" };\nfor (const r of rows) { if (r.json && r.json.state_key === \"platform\") prev = r.json; }\nconst nowIso = new Date().toISOString();\nconst status = String(summary.status || \"GREEN\");\nconst last = String(prev.last_status || \"UNKNOWN\");\nconst changed = status !== last;\nconst baseline = last === \"UNKNOWN\";\nconst DIGEST_HOURS = 24;\nlet hoursSinceAlert = 1e9;\nif (prev.last_alert_at) { hoursSinceAlert = (Date.now() - new Date(prev.last_alert_at).getTime()) / 3600000; }\nconst digestDue = status !== \"GREEN\" && hoursSinceAlert >= DIGEST_HOURS;\nconst shouldAlert = (changed && !(baseline && status === \"GREEN\")) || digestDue;\nlet prefix = \"\";\nif (baseline) {\n  prefix = \"\";\n} else if (changed && status === \"GREEN\") {\n  prefix = \"RECOVERED - was \" + last + \", now GREEN.\\n\\n\";\n} else if (changed) {\n  prefix = \"CHANGED - was \" + last + \".\\n\\n\";\n} else if (digestDue) {\n  prefix = \"STILL \" + status + \" after \" + Math.round(hoursSinceAlert) + \"h. Nothing new since the last message; this is the daily reminder so silence keeps meaning unchanged rather than unwatched.\\n\\n\";\n}\nreturn [{ json: {\n  should_alert: shouldAlert,\n  transition: changed ? (last + \" -> \" + status) : \"none\",\n  status: status,\n  alert_text: prefix + String(summary.alert_text || (\"Platform Sentinel: \" + status)),\n  state_key: \"platform\",\n  last_status: status,\n  changed_at: changed ? nowIso : String(prev.changed_at || nowIso),\n  last_alert_at: shouldAlert ? nowIso : String(prev.last_alert_at || \"\")\n} }];"
+      },
+      "id": "bb22cc33-dd44-4e55-9f66-077788899900",
+      "name": "Decide Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        256
+      ],
+      "notes": "GREEN->AMBER speaks. AMBER->AMBER stays quiet. AMBER->GREEN sends a recovery notice. A 24h reminder stops a long outage going silent."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a1",
+              "leftValue": "={{ $json.should_alert }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cc33dd44-ee55-4f66-a077-188899900011",
+      "name": "Alert Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sentinel_alert_state"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "state_key",
+              "keyValue": "={{ $json.state_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "state_key": "={{ $json.state_key }}",
+            "last_status": "={{ $json.last_status }}",
+            "changed_at": "={{ $json.changed_at }}",
+            "last_alert_at": "={{ $json.last_alert_at }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "dd44ee55-ff66-4077-b188-899900011122",
+      "name": "Write Alert State",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        432
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -1144,7 +1243,7 @@
             "index": 0
           },
           {
-            "node": "Status RED Or AMBER",
+            "node": "Summary Only",
             "type": "main",
             "index": 0
           }
@@ -1173,7 +1272,45 @@
         ]
       ]
     },
-    "Status RED Or AMBER": {
+    "Summary Only": {
+      "main": [
+        [
+          {
+            "node": "Read Alert State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Alert State": {
+      "main": [
+        [
+          {
+            "node": "Decide Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Alert": {
+      "main": [
+        [
+          {
+            "node": "Alert Needed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Write Alert State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Needed": {
       "main": [
         [
           {
@@ -1181,7 +1318,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     }
   },
