@@ -384,6 +384,20 @@ demonstrates that a *changed* ledger produces a *different* hash, which is the p
 actually make tampering detectable. That test has not been run and the claim should not be made
 until it has.
 
+*Since run.* Both versions of the ledger builder were executed against one fixed synthetic execution:
+v1 produced `63b2421dc266e863`, v2 produced `a834ed58f0de4b1e`. Different ledgers, clearly different
+hashes. That is one data point, not a tamper-evidence proof — a single pair says nothing about
+collision resistance, and the hash is still two 32-bit accumulators rather than a cryptographic
+digest. But "sensitive to content" has moved from assumed to observed. See
+[`09-run-it-yourself.md`](09-run-it-yourself.md), where you can reproduce both numbers.
+
+**And the reason both numbers exist.** Until that check was run, the JSON published in `workflows/`
+was **v1** — the version this section calls broken — while the text above described v2. Every claim
+here was true of the workflow on my instance and not reproducible from the artefact in this repo. The
+document and the thing it documents had quietly diverged, and reading either one alone would never
+have shown it. Fixed in the same commit as `09`, and it is the fourth time in this repo that the only
+thing which caught a problem was running it rather than reasoning about it.
+
 **And one thing it exposed.** On the re-run, `Only New Packs` returned zero items, correctly
 recognising that this pack was already stored. `Send Recorder Alert` fired anyway and returned
 `{"success": true}`. It is the same asymmetry documented in Part 8 of

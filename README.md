@@ -69,13 +69,17 @@ that n8n had marked successful, before the fix it was predicting had even shippe
 1. In n8n, go to **Workflows → Import from File** and pick any JSON in `workflows/`.
 2. Every workflow runs on a **Manual Trigger** or a **Schedule Trigger**, with one exception: Replay Cassette uses a
    **Webhook**, so you need to activate it or use Test URL.
-3. **The first six need no credentials.** Nothing in them calls a paid API. Input data is seeded in Code nodes so the
-   graph runs end to end on a fresh instance with nothing configured. That is deliberate, and it is also the biggest
-   honest limitation — see `docs/06-limitations.md`.
-   The exceptions are **Platform Sentinel** and the **Agent Flight Recorder**, which both read a real instance and
-   therefore need a real n8n API credential and their Data Tables. Setup is in `docs/07-platform-sentinel.md` and
-   `docs/08-agent-flight-recorder.md`. Without them neither pretends to work. Each reports what it could not check,
-   which is the entire point of both.
+3. **Seven of the eight need no credentials.** Nothing in them calls a paid API. Input data is seeded in Code nodes so
+   the graph runs end to end on a fresh instance with nothing configured. That is deliberate, and it is also the
+   biggest honest limitation — see `docs/06-limitations.md`.
+   The **Agent Flight Recorder** now ships with a synthetic execution record switched on, so it runs on a bare
+   instance too: import it, press Execute, and you should get verdict `SUSPECT` with fingerprint
+   `a834ed58f0de4b1e`. If your fingerprint differs, one of us is wrong and the difference is inspectable — that is
+   the closest thing to a self-verifying artefact in here.
+   **Platform Sentinel** is the one exception and stays that way on purpose: it audits a real instance through its
+   own API, so a synthetic mode would be a tool reporting a status having checked nothing, which is the exact
+   failure `docs/07` is about. It needs an n8n API credential and three Data Tables.
+   **Full setup, table schemas and expected output: [`docs/09-run-it-yourself.md`](docs/09-run-it-yourself.md).**
 4. Read the sticky notes. They carry the reasoning, not just the labels.
 
 ## Repository layout
@@ -90,6 +94,9 @@ docs/
   06-limitations.md              what is stubbed, what I would fix, in what order
   07-platform-sentinel.md        a monitor, the four bugs it hid from me, and the fix
   08-agent-flight-recorder.md    proving what an AI agent did, and the bugs that arrive after the fix
+  09-run-it-yourself.md          how to run these without my instance, and the number you should get
+fixtures/
+  agent-execution-silent-recovery.json   invented agent run: green tick, failed tool, answer that hides it
 workflows/
   determinism-advisor.json       10 nodes
   replay-cassette.json           10 nodes, live webhook
@@ -98,7 +105,7 @@ workflows/
   trust-ledger.json              10 nodes
   community-failure-miner.json   10 nodes
   platform-sentinel.json         33 nodes, audits a live instance, needs credentials
-  agent-flight-recorder.json     15 nodes, rebuilds what an agent really did, needs credentials
+  agent-flight-recorder.json     17 nodes, rebuilds what an agent really did, runs on the fixture as shipped
 ```
 
 ## A note on size

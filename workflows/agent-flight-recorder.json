@@ -4,13 +4,23 @@
     {
       "parameters": {
         "inputSource": "workflowInputs",
-        "workflowInputs": { "values": [{ "name": "execution_id", "type": "string" }] }
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "execution_id",
+              "type": "string"
+            }
+          ]
+        }
       },
       "id": "1a5f2c60-0f11-4b8e-9a01-0d2b7c4e5f10",
       "name": "Called By Another Workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [-1440, 200]
+      "position": [
+        -1440,
+        200
+      ]
     },
     {
       "parameters": {},
@@ -18,13 +28,21 @@
       "name": "Test Manually",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [-1440, 440]
+      "position": [
+        -1440,
+        440
+      ]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "d1", "name": "execution_id", "value": "112", "type": "string" }
+            {
+              "id": "d1",
+              "name": "execution_id",
+              "value": "152",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -33,16 +51,45 @@
       "name": "Demo Execution Id",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
-      "position": [-1200, 440]
+      "position": [
+        -1200,
+        440
+      ]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "c1", "name": "execution_id", "value": "={{ $json.execution_id }}", "type": "string" },
-            { "id": "c2", "name": "apiBase", "value": "https://YOUR-N8N-INSTANCE/api/v1", "type": "string" },
-            { "id": "c3", "name": "retryStormThreshold", "value": 3, "type": "number" },
-            { "id": "c4", "name": "maxSampleChars", "value": 2000, "type": "number" }
+            {
+              "id": "c1",
+              "name": "execution_id",
+              "value": "={{ $json.execution_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "apiBase",
+              "value": "https://YOUR-N8N-INSTANCE/api/v1",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "retryStormThreshold",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "c4",
+              "name": "maxSampleChars",
+              "value": 2000,
+              "type": "number"
+            },
+            {
+              "id": "c5",
+              "name": "useSyntheticData",
+              "value": true,
+              "type": "boolean"
+            }
           ]
         },
         "options": {}
@@ -51,7 +98,10 @@
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
-      "position": [-960, 300]
+      "position": [
+        -1080,
+        304
+      ]
     },
     {
       "parameters": {
@@ -59,37 +109,60 @@
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "n8nApi",
         "sendQuery": true,
-        "queryParameters": { "parameters": [{ "name": "includeData", "value": "true" }] },
-        "options": { "response": { "response": { "neverError": true } }, "timeout": 30000 }
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "includeData",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
       },
       "id": "5e9c60a4-4d55-4fcc-9e45-415fb182934d",
       "name": "Fetch Execution Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-720, 300],
+      "position": [
+        -720,
+        300
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const first = $input.first();\nconst body = first ? first.json : null;\nconst cap = Number($(\"Config\").first().json.maxSampleChars) || 2000;\nif (!body || body.error || !body.data || !body.data.resultData) {\n  const why = body && body.error ? (body.error.message || \"API error\") : \"execution returned no runData\";\n  return [{ json: { recorder_blind: true, reason: why, tools: [], agents: [], evidence_truncated: false, nodes_seen: 0 } }];\n}\nconst runData = body.data.resultData.runData || {};\nconst wfNodes = body.workflowData && Array.isArray(body.workflowData.nodes) ? body.workflowData.nodes : [];\nconst typeByName = {};\nfor (const n of wfNodes) { typeByName[n.name] = n.type || \"\"; }\nfunction isTool(t) { return typeof t === \"string\" && t.toLowerCase().indexOf(\"tool\") !== -1; }\nfunction isAgent(t) { return typeof t === \"string\" && t.toLowerCase().indexOf(\"agent\") !== -1; }\nconst tools = [];\nconst agents = [];\nlet truncated = false;\nfor (const name of Object.keys(runData)) {\n  const t = typeByName[name] || \"\";\n  const runs = Array.isArray(runData[name]) ? runData[name] : [];\n  for (let i = 0; i < runs.length; i++) {\n    const r = runs[i] || {};\n    let outFull = \"\";\n    try { const m = r.data && r.data.main && Array.isArray(r.data.main[0]) ? r.data.main[0] : []; outFull = JSON.stringify(m); } catch (e) { outFull = \"\"; }\n    if (outFull.length > cap) truncated = true;\n    let inFull = \"\";\n    try { inFull = JSON.stringify(r.inputOverride || {}); } catch (e) { inFull = \"\"; }\n    if (inFull.length > cap) truncated = true;\n    const entry = { name: name, node_type: t, run: i, ok: r.executionStatus !== \"error\", status: r.executionStatus || \"unknown\", ms: Number(r.executionTime) || 0, started_at: r.startTime || null, input_sample: inFull.slice(0, cap), output_sample: outFull.slice(0, cap) };\n    if (isTool(t)) { tools.push(entry); } else if (isAgent(t)) { agents.push(entry); }\n  }\n}\nreturn [{ json: { recorder_blind: false, reason: \"\", tools: tools, agents: agents, evidence_truncated: truncated, nodes_seen: Object.keys(runData).length } }];"
+        "jsCode": "const first = $input.first();\nconst body = first ? first.json : null;\nconst cap = Number($(\"Config\").first().json.maxSampleChars) || 2000;\nif (!body || body.error || !body.data || !body.data.resultData) {\n  const why = body && body.error ? (body.error.message || \"API error\") : \"execution returned no runData\";\n  return [{ json: { recorder_blind: true, reason: why, tools: [], agents: [], evidence_truncated: false, nodes_seen: 0 } }];\n}\nconst runData = body.data.resultData.runData || {};\nconst wfNodes = body.workflowData && Array.isArray(body.workflowData.nodes) ? body.workflowData.nodes : [];\nconst typeByName = {};\nfor (const n of wfNodes) { typeByName[n.name] = n.type || \"\"; }\nfunction isTool(t) { return typeof t === \"string\" && t.toLowerCase().indexOf(\"tool\") !== -1; }\nfunction isAgent(t) { return typeof t === \"string\" && t.toLowerCase().indexOf(\"agent\") !== -1; }\nfunction pickOutput(r) {\n  if (!r || !r.data) return [];\n  if (Array.isArray(r.data.ai_tool) && Array.isArray(r.data.ai_tool[0])) return r.data.ai_tool[0];\n  if (Array.isArray(r.data.main) && Array.isArray(r.data.main[0])) return r.data.main[0];\n  return [];\n}\nfunction pickInput(r) {\n  if (!r || !r.inputOverride) return {};\n  if (Array.isArray(r.inputOverride.ai_tool) && Array.isArray(r.inputOverride.ai_tool[0])) return r.inputOverride.ai_tool[0];\n  return r.inputOverride;\n}\nconst tools = [];\nconst agents = [];\nlet truncated = false;\nfor (const name of Object.keys(runData)) {\n  const t = typeByName[name] || \"\";\n  const runs = Array.isArray(runData[name]) ? runData[name] : [];\n  for (let i = 0; i < runs.length; i++) {\n    const r = runs[i] || {};\n    const outArr = pickOutput(r);\n    let payloadError = false;\n    let errText = \"\";\n    for (const o of outArr) {\n      if (o && o.json && o.json.error !== undefined && o.json.error !== null) {\n        payloadError = true;\n        if (!errText) errText = typeof o.json.error === \"string\" ? o.json.error : JSON.stringify(o.json.error);\n      }\n    }\n    let outFull = \"\";\n    try { outFull = JSON.stringify(outArr); } catch (e) { outFull = \"\"; }\n    if (outFull.length > cap) truncated = true;\n    let inFull = \"\";\n    try { inFull = JSON.stringify(pickInput(r)); } catch (e) { inFull = \"\"; }\n    if (inFull.length > cap) truncated = true;\n    const nodeFailed = r.executionStatus === \"error\";\n    const entry = { name: name, node_type: t, run: i, ok: !nodeFailed && !payloadError, node_failed: nodeFailed, payload_error: payloadError, error_text: String(errText).slice(0, 300), status: r.executionStatus || \"unknown\", ms: Number(r.executionTime) || 0, started_at: r.startTime || null, input_sample: inFull.slice(0, cap), output_sample: outFull.slice(0, cap) };\n    if (isTool(t)) { tools.push(entry); } else if (isAgent(t)) { agents.push(entry); }\n  }\n}\nreturn [{ json: { recorder_blind: false, reason: \"\", tools: tools, agents: agents, evidence_truncated: truncated, nodes_seen: Object.keys(runData).length } }];"
       },
       "id": "6fad71b5-5e66-40dd-8f56-526ac2930a5e",
       "name": "Reconstruct Tool Ledger",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-480, 300],
+      "position": [
+        -480,
+        300
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const e = $input.first().json;\nconst cfg = $(\"Config\").first().json;\nconst findings = [];\nif (e.recorder_blind) {\n  findings.push({ type: \"RECORDER_BLIND\", severity: \"CRITICAL\", detail: \"could not read the execution record: \" + e.reason + \". No claim was checked this run, so nothing here should be read as a clean bill of health.\" });\n  return [{ json: { findings: findings, ledger: [], claims: [], evidence_complete: false, redactions: 0, tools_called: 0, tools_ok: 0, tools_failed: 0, answer_present: false } }];\n}\nconst RED = [\n  { re: new RegExp(\"sk-[A-Za-z0-9]{12,}\", \"g\"), tag: \"api_key\" },\n  { re: new RegExp(\"(bearer\\\\s+)[A-Za-z0-9._-]{12,}\", \"gi\"), tag: \"bearer_token\" },\n  { re: new RegExp(\"(password|passwd|secret|token|api[_-]?key)\\\\W{1,4}([A-Za-z0-9._-]{8,})\", \"gi\"), tag: \"secret_field\" },\n  { re: new RegExp(\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\", \"g\"), tag: \"email\" },\n  { re: new RegExp(\"\\\\b[A-Fa-f0-9]{32,}\\\\b\", \"g\"), tag: \"long_hex_token\" }\n];\nlet redactions = 0;\nconst redactedTags = {};\nfunction redact(s) {\n  let out = String(s || \"\");\n  for (const r of RED) {\n    out = out.replace(r.re, function () { redactions++; redactedTags[r.tag] = true; return \"[REDACTED:\" + r.tag + \"]\"; });\n  }\n  return out;\n}\nconst ledger = [];\nfor (const t of e.tools) {\n  ledger.push({ tool: t.name, node_type: t.node_type, run: t.run, ok: t.ok, status: t.status, ms: t.ms, input: redact(t.input_sample), output: redact(t.output_sample) });\n}\nlet answer = \"\";\nfor (const a of e.agents) { answer += \" \" + redact(a.output_sample); }\nconst lower = answer.toLowerCase();\nconst SIDE_EFFECT = [\"sent\", \"emailed\", \"created\", \"updated\", \"deleted\", \"posted\", \"booked\", \"cancelled\", \"refunded\", \"scheduled\", \"saved\", \"published\", \"uploaded\", \"notified\", \"charged\"];\nconst READ_ONLY = [\"searched\", \"looked up\", \"checked\", \"fetched\", \"retrieved\", \"queried\"];\nconst claims = [];\nfor (const v of SIDE_EFFECT) { if (lower.indexOf(v) !== -1) { claims.push({ verb: v, kind: \"side_effect\" }); } }\nfor (const v of READ_ONLY) { if (lower.indexOf(v) !== -1) { claims.push({ verb: v, kind: \"read\" }); } }\nconst seen = {};\nconst uniqueClaims = [];\nfor (const c of claims) { if (!seen[c.verb]) { seen[c.verb] = true; uniqueClaims.push(c); } }\nconst okCalls = ledger.filter(function (l) { return l.ok; });\nconst failedCalls = ledger.filter(function (l) { return !l.ok; });\nconst hasAnswer = answer.trim().length > 0;\nconst sideEffectClaims = uniqueClaims.filter(function (c) { return c.kind === \"side_effect\"; });\nif (!hasAnswer) {\n  findings.push({ type: \"NO_AGENT_OUTPUT\", severity: \"HIGH\", detail: \"no agent answer was found in this execution, so no claim could be compared against the tool ledger. Point the recorder at an execution that contains an AI Agent node.\" });\n} else if (sideEffectClaims.length > 0 && okCalls.length === 0) {\n  const verbs = sideEffectClaims.map(function (c) { return c.verb; }).join(\", \");\n  findings.push({ type: \"FABRICATED_ACTION\", severity: \"CRITICAL\", detail: \"the agent described doing something with real-world effect (\" + verbs + \") but the execution record contains no successful tool call at all. Either the action never happened, or it happened somewhere this recorder cannot see.\" });\n}\nif (failedCalls.length > 0 && hasAnswer) {\n  const admits = lower.indexOf(\"fail\") !== -1 || lower.indexOf(\"error\") !== -1 || lower.indexOf(\"could not\") !== -1 || lower.indexOf(\"couldn\") !== -1 || lower.indexOf(\"unable\") !== -1 || lower.indexOf(\"problem\") !== -1;\n  if (!admits) {\n    const names = failedCalls.map(function (l) { return l.tool; }).join(\", \");\n    findings.push({ type: \"SILENT_RECOVERY\", severity: \"HIGH\", detail: \"a tool failed (\" + names + \") but the agent answer never mentions any failure. The agent smoothed over a broken step, which reads to the user exactly like success.\" });\n  }\n}\nconst byToolInput = {};\nfor (const l of ledger) { const k = l.tool + \"|\" + l.input; byToolInput[k] = (byToolInput[k] || 0) + 1; }\nfor (const k of Object.keys(byToolInput)) {\n  if (byToolInput[k] > 1) {\n    const toolName = k.split(\"|\")[0];\n    findings.push({ type: \"DUPLICATE_SIDE_EFFECT\", severity: \"CRITICAL\", detail: \"tool \\\"\" + toolName + \"\\\" ran \" + byToolInput[k] + \" times with identical input. If that tool is not idempotent the action happened more than once - the classic retry-after-timeout double send.\" });\n  }\n}\nconst byTool = {};\nfor (const l of ledger) { byTool[l.tool] = (byTool[l.tool] || 0) + 1; }\nconst stormLimit = Number(cfg.retryStormThreshold) || 3;\nfor (const k of Object.keys(byTool)) {\n  if (byTool[k] > stormLimit) {\n    findings.push({ type: \"RETRY_STORM\", severity: \"HIGH\", detail: \"tool \\\"\" + k + \"\\\" was called \" + byTool[k] + \" times in one run, over the threshold of \" + stormLimit + \". An agent that is handed an error and told to cope will often just try again forever.\" });\n  }\n}\nif (redactions > 0) {\n  findings.push({ type: \"SECRET_IN_EVIDENCE\", severity: \"CRITICAL\", detail: redactions + \" secret-shaped value(s) (\" + Object.keys(redactedTags).join(\", \") + \") appeared in tool inputs or outputs and were masked before this record was stored. The values are out of the record, but they were in the agent context, so treat them as exposed and rotate.\" });\n}\nconst INJ = [\"ignore previous\", \"ignore all previous\", \"disregard the above\", \"system:\", \"you are now\", \"new instructions\"];\nfor (const l of ledger) {\n  const lo = String(l.output || \"\").toLowerCase();\n  for (const p of INJ) {\n    if (lo.indexOf(p) !== -1) {\n      findings.push({ type: \"INJECTION_ECHO\", severity: \"HIGH\", detail: \"the output of tool \\\"\" + l.tool + \"\\\" contains instruction-shaped text (\\\"\" + p + \"\\\"). Tool output is untrusted input. Once tool output is stored in memory it gets replayed into every later run.\" });\n      break;\n    }\n  }\n}\nif (e.evidence_truncated) {\n  findings.push({ type: \"EVIDENCE_TRUNCATED\", severity: \"HIGH\", detail: \"at least one tool input or output was larger than the sample cap and was stored only in part. Any verdict below rests on an incomplete record and is provisional.\" });\n}\nreturn [{ json: { findings: findings, ledger: ledger, claims: uniqueClaims, evidence_complete: !e.evidence_truncated, redactions: redactions, tools_called: ledger.length, tools_ok: okCalls.length, tools_failed: failedCalls.length, answer_present: hasAnswer } }];"
+        "jsCode": "const e = $input.first().json;\nconst cfg = $(\"Config\").first().json;\nconst findings = [];\nif (e.recorder_blind) {\n  findings.push({ type: \"RECORDER_BLIND\", severity: \"CRITICAL\", detail: \"could not read the execution record: \" + e.reason + \". No claim was checked this run, so nothing here should be read as a clean bill of health.\" });\n  return [{ json: { findings: findings, ledger: [], claims: [], evidence_complete: false, redactions: 0, tools_called: 0, tools_ok: 0, tools_failed: 0, answer_present: false } }];\n}\nconst RED = [\n  { re: new RegExp(\"sk-[A-Za-z0-9]{12,}\", \"g\"), tag: \"api_key\" },\n  { re: new RegExp(\"(bearer\\\\s+)[A-Za-z0-9._-]{12,}\", \"gi\"), tag: \"bearer_token\" },\n  { re: new RegExp(\"(password|passwd|secret|token|api[_-]?key)\\\\W{1,4}([A-Za-z0-9._-]{8,})\", \"gi\"), tag: \"secret_field\" },\n  { re: new RegExp(\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}\", \"g\"), tag: \"email\" },\n  { re: new RegExp(\"\\\\b[A-Fa-f0-9]{32,}\\\\b\", \"g\"), tag: \"long_hex_token\" }\n];\nlet redactions = 0;\nconst redactedTags = {};\nfunction redact(s) {\n  let out = String(s || \"\");\n  for (const r of RED) {\n    out = out.replace(r.re, function () { redactions++; redactedTags[r.tag] = true; return \"[REDACTED:\" + r.tag + \"]\"; });\n  }\n  return out;\n}\nconst ledger = [];\nfor (const t of e.tools) {\n  ledger.push({ tool: t.name, node_type: t.node_type, run: t.run, ok: t.ok, node_failed: t.node_failed, payload_error: t.payload_error, error_text: redact(t.error_text), status: t.status, ms: t.ms, input: redact(t.input_sample), output: redact(t.output_sample) });\n}\nlet answer = \"\";\nfor (const a of e.agents) { answer += \" \" + redact(a.output_sample); }\nconst lower = answer.toLowerCase();\nconst SIDE_EFFECT = [\"sent\", \"emailed\", \"created\", \"updated\", \"deleted\", \"posted\", \"booked\", \"cancelled\", \"refunded\", \"scheduled\", \"saved\", \"published\", \"uploaded\", \"notified\", \"charged\"];\nconst READ_ONLY = [\"searched\", \"looked up\", \"checked\", \"fetched\", \"retrieved\", \"queried\"];\nconst claims = [];\nfor (const v of SIDE_EFFECT) { if (lower.indexOf(v) !== -1) { claims.push({ verb: v, kind: \"side_effect\" }); } }\nfor (const v of READ_ONLY) { if (lower.indexOf(v) !== -1) { claims.push({ verb: v, kind: \"read\" }); } }\nconst seen = {};\nconst uniqueClaims = [];\nfor (const c of claims) { if (!seen[c.verb]) { seen[c.verb] = true; uniqueClaims.push(c); } }\nconst okCalls = ledger.filter(function (l) { return l.ok; });\nconst failedCalls = ledger.filter(function (l) { return !l.ok; });\nconst hasAnswer = answer.trim().length > 0;\nconst sideEffectClaims = uniqueClaims.filter(function (c) { return c.kind === \"side_effect\"; });\nif (!hasAnswer) {\n  findings.push({ type: \"NO_AGENT_OUTPUT\", severity: \"HIGH\", detail: \"no agent answer was found in this execution, so no claim could be compared against the tool ledger. Point the recorder at an execution that contains an AI Agent node.\" });\n} else if (sideEffectClaims.length > 0 && okCalls.length === 0) {\n  const verbs = sideEffectClaims.map(function (c) { return c.verb; }).join(\", \");\n  findings.push({ type: \"FABRICATED_ACTION\", severity: \"CRITICAL\", detail: \"the agent described doing something with real-world effect (\" + verbs + \") but the execution record contains no successful tool call at all. Either the action never happened, or it happened somewhere this recorder cannot see.\" });\n}\nif (failedCalls.length > 0 && hasAnswer) {\n  const admits = lower.indexOf(\"fail\") !== -1 || lower.indexOf(\"error\") !== -1 || lower.indexOf(\"could not\") !== -1 || lower.indexOf(\"couldn\") !== -1 || lower.indexOf(\"unable\") !== -1 || lower.indexOf(\"problem\") !== -1 || lower.indexOf(\"no orders\") !== -1 || lower.indexOf(\"not find\") !== -1 || lower.indexOf(\"no results\") !== -1;\n  if (!admits) {\n    const parts = [];\n    for (const l of failedCalls) { parts.push(l.tool + (l.payload_error ? \" returned \\\"\" + l.error_text + \"\\\"\" : \" failed at node level\")); }\n    findings.push({ type: \"SILENT_RECOVERY\", severity: \"HIGH\", detail: \"a tool did not succeed (\" + parts.join(\"; \") + \") but the agent answer never mentions any failure or missing data. The agent wrote around a broken step, which reads to the user exactly like success.\" });\n  }\n}\nconst byToolInput = {};\nfor (const l of ledger) { const k = l.tool + \"|\" + l.input; byToolInput[k] = (byToolInput[k] || 0) + 1; }\nfor (const k of Object.keys(byToolInput)) {\n  if (byToolInput[k] > 1) {\n    const toolName = k.split(\"|\")[0];\n    findings.push({ type: \"DUPLICATE_SIDE_EFFECT\", severity: \"CRITICAL\", detail: \"tool \\\"\" + toolName + \"\\\" ran \" + byToolInput[k] + \" times with identical input. If that tool is not idempotent the action happened more than once - the classic retry-after-timeout double send.\" });\n  }\n}\nconst byTool = {};\nfor (const l of ledger) { byTool[l.tool] = (byTool[l.tool] || 0) + 1; }\nconst stormLimit = Number(cfg.retryStormThreshold) || 3;\nfor (const k of Object.keys(byTool)) {\n  if (byTool[k] > stormLimit) {\n    findings.push({ type: \"RETRY_STORM\", severity: \"HIGH\", detail: \"tool \\\"\" + k + \"\\\" was called \" + byTool[k] + \" times in one run, over the threshold of \" + stormLimit + \". An agent that is handed an error and told to cope will often just try again forever.\" });\n  }\n}\nif (redactions > 0) {\n  findings.push({ type: \"SECRET_IN_EVIDENCE\", severity: \"CRITICAL\", detail: redactions + \" secret-shaped value(s) (\" + Object.keys(redactedTags).join(\", \") + \") appeared in tool inputs or outputs and were masked before this record was stored. The values are out of the record, but they were in the agent context, so treat them as exposed and rotate.\" });\n}\nconst INJ = [\"ignore previous\", \"ignore all previous\", \"disregard the above\", \"system:\", \"you are now\", \"new instructions\"];\nfor (const l of ledger) {\n  const lo = String(l.output || \"\").toLowerCase();\n  for (const p of INJ) {\n    if (lo.indexOf(p) !== -1) {\n      findings.push({ type: \"INJECTION_ECHO\", severity: \"HIGH\", detail: \"the output of tool \\\"\" + l.tool + \"\\\" contains instruction-shaped text (\\\"\" + p + \"\\\"). Tool output is untrusted input. Once tool output is stored in memory it gets replayed into every later run.\" });\n      break;\n    }\n  }\n}\nif (e.evidence_truncated) {\n  findings.push({ type: \"EVIDENCE_TRUNCATED\", severity: \"HIGH\", detail: \"at least one tool input or output was larger than the sample cap and was stored only in part. Any verdict below rests on an incomplete record and is provisional.\" });\n}\nreturn [{ json: { findings: findings, ledger: ledger, claims: uniqueClaims, evidence_complete: !e.evidence_truncated, redactions: redactions, tools_called: ledger.length, tools_ok: okCalls.length, tools_failed: failedCalls.length, answer_present: hasAnswer } }];"
       },
       "id": "70be82c6-6f77-41ee-9067-637bd3a41b6f",
       "name": "Reconcile Claims Against Evidence",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-240, 300],
+      "position": [
+        -240,
+        300
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -100,25 +173,46 @@
       "name": "Seal Evidence Pack",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, 300]
+      "position": [
+        0,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "rowNotExists",
-        "dataTableId": { "__rl": true, "mode": "name", "value": "recorder_evidence_packs" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "recorder_evidence_packs"
+        },
         "matchType": "allConditions",
-        "filters": { "conditions": [{ "keyName": "pack_key", "keyValue": "={{ $json.pack_key }}" }] }
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pack_key",
+              "keyValue": "={{ $json.pack_key }}"
+            }
+          ]
+        }
       },
       "id": "92d0a4e8-8199-4300-9289-859df5c63d81",
       "name": "Only New Packs",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [240, 180],
+      "position": [
+        240,
+        180
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "dataTableId": { "__rl": true, "mode": "name", "value": "recorder_evidence_packs" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "recorder_evidence_packs"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
@@ -135,17 +229,105 @@
             "recorded_at": "={{ $json.recorded_at }}"
           },
           "schema": [
-            { "id": "pack_key", "displayName": "pack_key", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "execution_id", "displayName": "execution_id", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "workflow_id", "displayName": "workflow_id", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "verdict", "displayName": "verdict", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "fingerprint", "displayName": "fingerprint", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "tools_called", "displayName": "tools_called", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true },
-            { "id": "claims_made", "displayName": "claims_made", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true },
-            { "id": "claims_unsupported", "displayName": "claims_unsupported", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true },
-            { "id": "coverage", "displayName": "coverage", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "findings", "displayName": "findings", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "recorded_at", "displayName": "recorded_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+            {
+              "id": "pack_key",
+              "displayName": "pack_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_id",
+              "displayName": "workflow_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "verdict",
+              "displayName": "verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fingerprint",
+              "displayName": "fingerprint",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tools_called",
+              "displayName": "tools_called",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "claims_made",
+              "displayName": "claims_made",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "claims_unsupported",
+              "displayName": "claims_unsupported",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "coverage",
+              "displayName": "coverage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "findings",
+              "displayName": "findings",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recorded_at",
+              "displayName": "recorded_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
           ]
         },
         "options": {}
@@ -154,15 +336,31 @@
       "name": "Store Evidence Pack",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [480, 180],
+      "position": [
+        480,
+        180
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
           "conditions": [
-            { "id": "v1", "leftValue": "={{ $json.verdict }}", "operator": { "type": "string", "operation": "notEquals" }, "rightValue": "CLEAN" }
+            {
+              "id": "v1",
+              "leftValue": "={{ $json.verdict }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "CLEAN"
+            }
           ],
           "combinator": "and"
         },
@@ -172,12 +370,19 @@
       "name": "Verdict Needs Attention",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [240, 440]
+      "position": [
+        240,
+        440
+      ]
     },
     {
       "parameters": {
         "select": "channel",
-        "channelId": { "__rl": true, "mode": "name", "value": "#agent-trust" },
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#agent-trust"
+        },
         "text": "={{ $json.alert_text }}",
         "otherOptions": {}
       },
@@ -185,12 +390,15 @@
       "name": "Send Recorder Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
-      "position": [480, 440],
+      "position": [
+        480,
+        440
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "content": "## Input\nCall this after an agent run with an execution_id, or run it manually to test.\nIt reads the execution record, which is where the real tool calls survive even when memory and log streaming drop them (n8n-io/n8n #14361, #28532).",
+        "content": "## Input\n**Ships with `useSyntheticData` ON, so it runs with no credentials and no data tables.**\nHit Execute and you should get verdict SUSPECT, fingerprint a834ed58f0de4b1e.\n\nSet `useSyntheticData` to false in Config to point it at a real execution_id on your own\ninstance - that path needs an n8n API credential and the recorder_evidence_packs table.\nIt reads the execution record, which is where the real tool calls survive even when memory\nand log streaming drop them (n8n-io/n8n #14361, #28532).",
         "height": 460,
         "width": 900,
         "color": 3
@@ -199,7 +407,10 @@
       "name": "Sticky Input",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1500, 140]
+      "position": [
+        -1500,
+        140
+      ]
     },
     {
       "parameters": {
@@ -212,7 +423,10 @@
       "name": "Sticky Core",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-540, 240]
+      "position": [
+        -540,
+        240
+      ]
     },
     {
       "parameters": {
@@ -225,25 +439,204 @@
       "name": "Sticky Seal",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-60, 120]
+      "position": [
+        -60,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "s1",
+              "leftValue": "={{ $json.useSyntheticData }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1f0a7c2-3d64-4a71-9e58-11c0d9a4e770",
+      "name": "Use Synthetic Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -880,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Synthetic execution record - invented data, no instance, no credentials.\n// Byte-identical to fixtures/agent-execution-silent-recovery.json.\n// Expected result: SUSPECT, fingerprint a834ed58f0de4b1e.\nreturn [{ json: {\"id\": \"152\", \"finished\": true, \"mode\": \"manual\", \"status\": \"success\", \"workflowId\": \"SYNTHETIC-AGENT-WF\", \"data\": {\"resultData\": {\"runData\": {\"TriggerChat\": [{\"startTime\": 1787007424695, \"executionTime\": 0, \"executionStatus\": \"success\", \"data\": {\"main\": [[{\"json\": {\"chatInput\": \"What is the status of order 1001, and who is the customer on that order?\"}, \"pairedItem\": {\"item\": 0}}]]}}], \"GroqModel\": [{\"startTime\": 1787007425345, \"executionTime\": 470, \"executionStatus\": \"success\", \"data\": {\"ai_languageModel\": [[{\"json\": {\"tokenUsage\": {\"completionTokens\": 83, \"promptTokens\": 415, \"totalTokens\": 498}}}]]}}], \"ToolGetOrderStatus\": [{\"startTime\": 1787007425819, \"executionTime\": 3227, \"executionStatus\": \"success\", \"inputOverride\": {\"ai_tool\": [[{\"json\": {\"order_id\": \"1001\"}, \"pairedItem\": {\"item\": 0, \"input\": 0, \"sourceOverwrite\": {\"previousNode\": \"TriggerChat\", \"previousNodeOutput\": 0, \"previousNodeRun\": 0}}}]]}, \"data\": {\"ai_tool\": [[{\"json\": {\"error\": \"No Orders found for customer id :  \"}, \"pairedItem\": {\"item\": 0}}]]}}], \"FeedbackAgent\": [{\"startTime\": 1787007429046, \"executionTime\": 826, \"executionStatus\": \"success\", \"data\": {\"main\": [[{\"json\": {\"output\": \"Sure thing! I’m happy to check that for you. Could you please confirm the exact order number you’d like me to look up (including any letters or prefixes it may have)? If you also have your customer ID handy, that would help me retrieve the related customer details as well. Thank you!\"}, \"pairedItem\": {\"item\": 0}}]]}}]}}}, \"workflowData\": {\"id\": \"SYNTHETIC-AGENT-WF\", \"name\": \"Synthetic Customer Service Agent\", \"nodes\": [{\"name\": \"TriggerChat\", \"type\": \"@n8n/n8n-nodes-langchain.chatTrigger\"}, {\"name\": \"GroqModel\", \"type\": \"@n8n/n8n-nodes-langchain.lmChatGroq\"}, {\"name\": \"ToolGetOrderStatus\", \"type\": \"n8n-nodes-base.httpRequestTool\"}, {\"name\": \"FeedbackAgent\", \"type\": \"@n8n/n8n-nodes-langchain.agent\"}]}} }];"
+      },
+      "id": "c2e5b9a4-7f13-4d80-8a6c-22d1e0b5f881",
+      "name": "Synthetic Execution Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        460
+      ]
     }
   ],
   "connections": {
-    "Called By Another Workflow": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
-    "Test Manually": { "main": [[{ "node": "Demo Execution Id", "type": "main", "index": 0 }]] },
-    "Demo Execution Id": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
-    "Config": { "main": [[{ "node": "Fetch Execution Record", "type": "main", "index": 0 }]] },
-    "Fetch Execution Record": { "main": [[{ "node": "Reconstruct Tool Ledger", "type": "main", "index": 0 }]] },
-    "Reconstruct Tool Ledger": { "main": [[{ "node": "Reconcile Claims Against Evidence", "type": "main", "index": 0 }]] },
-    "Reconcile Claims Against Evidence": { "main": [[{ "node": "Seal Evidence Pack", "type": "main", "index": 0 }]] },
-    "Seal Evidence Pack": {
-      "main": [[
-        { "node": "Only New Packs", "type": "main", "index": 0 },
-        { "node": "Verdict Needs Attention", "type": "main", "index": 0 }
-      ]]
+    "Called By Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Only New Packs": { "main": [[{ "node": "Store Evidence Pack", "type": "main", "index": 0 }]] },
-    "Verdict Needs Attention": { "main": [[{ "node": "Send Recorder Alert", "type": "main", "index": 0 }]] }
+    "Test Manually": {
+      "main": [
+        [
+          {
+            "node": "Demo Execution Id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demo Execution Id": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Use Synthetic Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Execution Record": {
+      "main": [
+        [
+          {
+            "node": "Reconstruct Tool Ledger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconstruct Tool Ledger": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Claims Against Evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Claims Against Evidence": {
+      "main": [
+        [
+          {
+            "node": "Seal Evidence Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seal Evidence Pack": {
+      "main": [
+        [
+          {
+            "node": "Only New Packs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Verdict Needs Attention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only New Packs": {
+      "main": [
+        [
+          {
+            "node": "Store Evidence Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verdict Needs Attention": {
+      "main": [
+        [
+          {
+            "node": "Send Recorder Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Synthetic Data": {
+      "main": [
+        [
+          {
+            "node": "Synthetic Execution Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Execution Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synthetic Execution Record": {
+      "main": [
+        [
+          {
+            "node": "Reconstruct Tool Ledger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "settings": {
     "executionOrder": "v1",

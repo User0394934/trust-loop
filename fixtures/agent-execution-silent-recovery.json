@@ -1,0 +1,67 @@
+{
+  "_comment": "Synthetic n8n execution record. Shaped exactly like a real one, but every value is invented: no instance, no credentials, no customer. It reproduces the one failure mode docs/08 is about - an AI agent whose tool returned HTTP 200 carrying an error body, and whose answer never admits it. Feed this to the Agent Flight Recorder with Use Synthetic Data enabled and you should get verdict SUSPECT with fingerprint a834ed58f0de4b1e.",
+  "id": "152",
+  "finished": true,
+  "mode": "manual",
+  "status": "success",
+  "workflowId": "SYNTHETIC-AGENT-WF",
+  "data": {
+    "resultData": {
+      "runData": {
+        "TriggerChat": [
+          {
+            "startTime": 1787007424695,
+            "executionTime": 0,
+            "executionStatus": "success",
+            "data": {
+              "main": [[{ "json": { "chatInput": "What is the status of order 1001, and who is the customer on that order?" }, "pairedItem": { "item": 0 } }]]
+            }
+          }
+        ],
+        "GroqModel": [
+          {
+            "startTime": 1787007425345,
+            "executionTime": 470,
+            "executionStatus": "success",
+            "data": {
+              "ai_languageModel": [[{ "json": { "tokenUsage": { "completionTokens": 83, "promptTokens": 415, "totalTokens": 498 } } }]]
+            }
+          }
+        ],
+        "ToolGetOrderStatus": [
+          {
+            "startTime": 1787007425819,
+            "executionTime": 3227,
+            "executionStatus": "success",
+            "inputOverride": {
+              "ai_tool": [[{ "json": { "order_id": "1001" }, "pairedItem": { "item": 0, "input": 0, "sourceOverwrite": { "previousNode": "TriggerChat", "previousNodeOutput": 0, "previousNodeRun": 0 } } }]]
+            },
+            "data": {
+              "ai_tool": [[{ "json": { "error": "No Orders found for customer id :  " }, "pairedItem": { "item": 0 } }]]
+            }
+          }
+        ],
+        "FeedbackAgent": [
+          {
+            "startTime": 1787007429046,
+            "executionTime": 826,
+            "executionStatus": "success",
+            "data": {
+              "main": [[{ "json": { "output": "Sure thing! I’m happy to check that for you. Could you please confirm the exact order number you’d like me to look up (including any letters or prefixes it may have)? If you also have your customer ID handy, that would help me retrieve the related customer details as well. Thank you!" }, "pairedItem": { "item": 0 } }]]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "workflowData": {
+    "id": "SYNTHETIC-AGENT-WF",
+    "name": "Synthetic Customer Service Agent",
+    "nodes": [
+      { "name": "TriggerChat", "type": "@n8n/n8n-nodes-langchain.chatTrigger" },
+      { "name": "GroqModel", "type": "@n8n/n8n-nodes-langchain.lmChatGroq" },
+      { "name": "ToolGetOrderStatus", "type": "n8n-nodes-base.httpRequestTool" },
+      { "name": "FeedbackAgent", "type": "@n8n/n8n-nodes-langchain.agent" }
+    ]
+  }
+}
