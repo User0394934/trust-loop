@@ -2,23 +2,65 @@
   "name": "Platform Sentinel",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
       "id": "50bc0e5d-7b76-4dfc-9c77-4f21fd4a215b",
       "name": "Every 15 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
-      "position": [-1200, 400]
+      "position": [
+        -1200,
+        400
+      ]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "a1", "name": "apiBase", "value": "https://YOUR-N8N-INSTANCE/api/v1", "type": "string" },
-            { "id": "a2", "name": "lookbackMinutes", "value": 60, "type": "number" },
-            { "id": "a3", "name": "errorSpikeThreshold", "value": 5, "type": "number" },
-            { "id": "a4", "name": "retentionMaxExecutions", "value": 50000, "type": "number" },
-            { "id": "a5", "name": "staleExecutionDays", "value": 30, "type": "number" },
-            { "id": "a6", "name": "hungMultiplier", "value": 1.5, "type": "number" }
+            {
+              "id": "a1",
+              "name": "apiBase",
+              "value": "https://YOUR-N8N-INSTANCE/api/v1",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "lookbackMinutes",
+              "value": 60,
+              "type": "number"
+            },
+            {
+              "id": "a3",
+              "name": "errorSpikeThreshold",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "a4",
+              "name": "retentionMaxExecutions",
+              "value": 50000,
+              "type": "number"
+            },
+            {
+              "id": "a5",
+              "name": "staleExecutionDays",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "a6",
+              "name": "hungMultiplier",
+              "value": 1.5,
+              "type": "number"
+            }
           ]
         },
         "options": {}
@@ -27,19 +69,29 @@
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
-      "position": [-1008, 400]
+      "position": [
+        -1008,
+        400
+      ]
     },
     {
       "parameters": {
         "operation": "get",
-        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_trigger_registry" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sentinel_trigger_registry_v2"
+        },
         "returnAll": true
       },
       "id": "895bd5bc-1bd5-4756-a37b-d8d2f1e50f14",
       "name": "Read Trigger Registry",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [-784, -416],
+      "position": [
+        -784,
+        -416
+      ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
     },
@@ -51,40 +103,70 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "workflowId", "value": "={{ $json.workflow_id }}" },
-            { "name": "status", "value": "success" },
-            { "name": "limit", "value": "1" },
-            { "name": "includeData", "value": "false" }
+            {
+              "name": "workflowId",
+              "value": "={{ $json.workflow_id }}"
+            },
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            },
+            {
+              "name": "includeData",
+              "value": "false"
+            }
           ]
         },
-        "options": { "response": { "response": { "neverError": true } }, "timeout": 20000 }
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 20000
+        }
       },
       "id": "4ec6793a-616a-40a1-a015-d78595bcf113",
       "name": "Fetch Last Success Per Workflow",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-560, -416],
+      "position": [
+        -560,
+        -416
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const reg = $(\"Read Trigger Registry\").all();\nconst res = $input.all();\nconst mult = $(\"Config\").first().json.hungMultiplier || 1.5;\nconst now = Date.now();\nconst valid = [];\nfor (const r of reg) { if (r.json && r.json.workflow_id) valid.push(r.json); }\nif (valid.length === 0) {\n  return [{ json: { finding_type: \"REGISTRY_EMPTY\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: \"instance\", check: \"1-silent-trigger\", detail: \"sentinel_trigger_registry is empty, so this check watched nothing. Seed it with the workflows that matter or this branch is decorative.\" } }];\n}\nconst out = [];\nfor (let i = 0; i < valid.length; i++) {\n  const r = valid[i];\n  const resp = res[i] ? res[i].json : null;\n  if (!resp || resp.error || !Array.isArray(resp.data)) {\n    out.push({ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, check: \"1-silent-trigger\", detail: \"could not read executions for \" + r.workflow_name + \": \" + (resp && resp.error ? (resp.error.message || \"API error\") : \"no response from the n8n API\") } });\n    continue;\n  }\n  const arr = resp.data;\n  const last = arr.length && arr[0].startedAt ? arr[0].startedAt : null;\n  const expected = Number(r.expected_interval_minutes) || 15;\n  if (!last) {\n    out.push({ json: { finding_type: \"SILENT_TRIGGER\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: \"no successful execution on record, expected every \" + expected + \" minutes\" } });\n    continue;\n  }\n  const elapsed = Math.round((now - new Date(last).getTime()) / 60000);\n  if (elapsed > expected * mult) {\n    out.push({ json: { finding_type: \"SILENT_TRIGGER\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: \"no successful execution in \" + elapsed + \" minutes, expected every \" + expected } });\n  }\n}\nreturn out;"
+        "jsCode": "const reg = $(\"Read Trigger Registry\").all();\nconst res = $input.all();\nconst mult = $(\"Config\").first().json.hungMultiplier || 1.5;\nconst now = Date.now();\nconst valid = [];\nfor (const r of reg) { if (r.json && r.json.workflow_id) valid.push(r.json); }\nif (valid.length === 0) {\n  return [{ json: { finding_type: \"REGISTRY_EMPTY\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: \"instance\", check: \"1-silent-trigger\", detail: \"sentinel_trigger_registry is empty, so this check watched nothing. Seed it with the workflows that matter or this branch is decorative.\" } }];\n}\nconst out = [];\nfor (let i = 0; i < valid.length; i++) {\n  const r = valid[i];\n  const outcome = String(r.expected_outcome || \"success\").toLowerCase();\n  const resp = res[i] ? res[i].json : null;\n  if (!resp || resp.error || !Array.isArray(resp.data)) {\n    out.push({ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, check: \"1-silent-trigger\", detail: \"could not read executions for \" + r.workflow_name + \": \" + (resp && resp.error ? (resp.error.message || \"API error\") : \"no response from the n8n API\") } });\n    continue;\n  }\n  const arr = resp.data;\n  const last = arr.length && arr[0].startedAt ? arr[0].startedAt : null;\n  const expected = Number(r.expected_interval_minutes) || 15;\n  if (outcome === \"on_demand\") { continue; }\n  if (outcome === \"failure\") {\n    if (last) {\n      const mins = Math.round((now - new Date(last).getTime()) / 60000);\n      out.push({ json: { finding_type: \"UNEXPECTED_SUCCESS\", severity: \"MEDIUM\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: r.workflow_name + \" is registered as designed to fail, but it succeeded \" + mins + \" minutes ago. A test that stops failing has stopped testing anything.\" } });\n    }\n    continue;\n  }\n  if (!last) {\n    out.push({ json: { finding_type: \"SILENT_TRIGGER\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: \"no successful execution on record, expected every \" + expected + \" minutes\" } });\n    continue;\n  }\n  const elapsed = Math.round((now - new Date(last).getTime()) / 60000);\n  if (elapsed > expected * mult) {\n    out.push({ json: { finding_type: \"SILENT_TRIGGER\", severity: \"CRITICAL\", workflow_id: r.workflow_id, workflow_name: r.workflow_name, owner: r.owner, check: \"1-silent-trigger\", detail: \"no successful execution in \" + elapsed + \" minutes, expected every \" + expected } });\n  }\n}\nreturn out;"
       },
       "id": "1c8afeff-238c-49bb-9f13-551020f1c874",
       "name": "Detect Silent Triggers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, -416],
+      "position": [
+        -336,
+        -416
+      ],
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": { "numberInputs": 7 },
+      "parameters": {
+        "numberInputs": 7
+      },
       "id": "4f742051-213e-4ccb-aee9-94ec5e735861",
       "name": "Merge All Checks",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
-      "position": [-16, 112]
+      "position": [
+        -16,
+        112
+      ]
     },
     {
       "parameters": {
@@ -94,17 +176,33 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "limit", "value": "250" },
-            { "name": "includeData", "value": "false" }
+            {
+              "name": "limit",
+              "value": "250"
+            },
+            {
+              "name": "includeData",
+              "value": "false"
+            }
           ]
         },
-        "options": { "response": { "response": { "neverError": true } }, "timeout": 20000 }
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 20000
+        }
       },
       "id": "c793257d-ec74-4ebd-9087-16f9b4751304",
       "name": "Fetch Recent Executions",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-780, -200],
+      "position": [
+        -780,
+        -200
+      ],
       "executeOnce": true,
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -117,7 +215,10 @@
       "name": "Detect Hung Executions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, -208],
+      "position": [
+        -336,
+        -208
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -128,18 +229,37 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "error" },
-            { "name": "limit", "value": "250" },
-            { "name": "includeData", "value": "false" }
+            {
+              "name": "status",
+              "value": "error"
+            },
+            {
+              "name": "limit",
+              "value": "250"
+            },
+            {
+              "name": "includeData",
+              "value": "false"
+            }
           ]
         },
-        "options": { "response": { "response": { "neverError": true } }, "timeout": 20000 }
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 20000
+        }
       },
       "id": "980ca525-ecb0-4367-b0de-ead2c5d05ce2",
       "name": "Fetch Failed Executions",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-560, 0],
+      "position": [
+        -560,
+        0
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
@@ -151,7 +271,10 @@
       "name": "Detect Error Spikes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, 0],
+      "position": [
+        -336,
+        0
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -162,15 +285,32 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "limit", "value": "250" },
-            { "name": "includeData", "value": "false" }
+            {
+              "name": "limit",
+              "value": "250"
+            },
+            {
+              "name": "includeData",
+              "value": "false"
+            }
           ]
         },
         "options": {
-          "response": { "response": { "neverError": true } },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "pagination": {
             "pagination": {
-              "parameters": { "parameters": [{ "name": "cursor", "value": "={{ $response.body.nextCursor }}" }] },
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "cursor",
+                    "value": "={{ $response.body.nextCursor }}"
+                  }
+                ]
+              },
               "paginationCompleteWhen": "other",
               "completeExpression": "={{ !$response.body.nextCursor }}",
               "limitPagesFetched": true,
@@ -184,7 +324,10 @@
       "name": "Fetch All Executions Paged",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-560, 208],
+      "position": [
+        -560,
+        208
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
@@ -196,7 +339,10 @@
       "name": "Detect Retention Breach",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, 208],
+      "position": [
+        -336,
+        208
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -205,12 +351,30 @@
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "n8nApi",
         "sendQuery": true,
-        "queryParameters": { "parameters": [{ "name": "limit", "value": "250" }] },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "250"
+            }
+          ]
+        },
         "options": {
-          "response": { "response": { "neverError": true } },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "pagination": {
             "pagination": {
-              "parameters": { "parameters": [{ "name": "cursor", "value": "={{ $response.body.nextCursor }}" }] },
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "cursor",
+                    "value": "={{ $response.body.nextCursor }}"
+                  }
+                ]
+              },
               "paginationCompleteWhen": "other",
               "completeExpression": "={{ !$response.body.nextCursor }}",
               "limitPagesFetched": true,
@@ -224,19 +388,25 @@
       "name": "Fetch Workflows For DoD",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-780, 400],
+      "position": [
+        -780,
+        400
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const pages = $input.all();\nconst wfs = [];\nlet good = 0;\nlet firstErr = \"\";\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  for (const w of j.data) wfs.push(w);\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"5-dod-lint\", detail: \"could not list workflows: \" + firstErr + \". Definition-of-Done was NOT checked this run.\" } }];\n}\nlet monitored = {};\ntry {\n  const reg = $(\"Read Trigger Registry\").all();\n  for (const r of reg) { if (r.json && r.json.workflow_id) monitored[r.json.workflow_id] = true; }\n} catch (e) { monitored = {}; }\nconst out = [];\nfor (const w of wfs) {\n  if (!w.active) continue;\n  const s = w.settings || {};\n  const tags = Array.isArray(w.tags) ? w.tags : [];\n  const label = w.name + \" (\" + w.id + \")\";\n  if (!s.errorWorkflow) out.push({ json: { finding_type: \"DOD_NO_ERROR_WORKFLOW\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no error workflow configured\" } });\n  if (!s.executionTimeout || Number(s.executionTimeout) < 1) out.push({ json: { finding_type: \"DOD_NO_TIMEOUT\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no execution timeout set\" } });\n  let hasOwner = false;\n  for (const t of tags) { const tn = typeof t === \"string\" ? t : (t && t.name ? t.name : \"\"); if (tn.indexOf(\"owner:\") === 0) hasOwner = true; }\n  if (!hasOwner) out.push({ json: { finding_type: \"DOD_NO_OWNER\", severity: \"MEDIUM\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no owner: tag\" } });\n  if (!monitored[w.id]) out.push({ json: { finding_type: \"DOD_NOT_MONITORED\", severity: \"MEDIUM\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" is active but not in sentinel_trigger_registry\" } });\n}\nreturn out;"
+        "jsCode": "const pages = $input.all();\nconst wfs = [];\nlet good = 0;\nlet firstErr = \"\";\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  for (const w of j.data) wfs.push(w);\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"5-dod-lint\", detail: \"could not list workflows: \" + firstErr + \". Definition-of-Done was NOT checked this run.\" } }];\n}\nlet monitored = {};\ntry {\n  const reg = $(\"Read Trigger Registry\").all();\n  for (const r of reg) { if (r.json && r.json.workflow_id) monitored[r.json.workflow_id] = true; }\n} catch (e) { monitored = {}; }\nconst out = [];\nfor (const w of wfs) {\n  if (!w.active) continue;\n  const s = w.settings || {};\n  const tags = Array.isArray(w.tags) ? w.tags : [];\n  const nodes = Array.isArray(w.nodes) ? w.nodes : [];\n  const label = w.name + \" (\" + w.id + \")\";\n  let isErrorHandler = false;\n  for (const nd of nodes) { if (String(nd.type || \"\").toLowerCase().indexOf(\"errortrigger\") !== -1) { isErrorHandler = true; } }\n  if (!s.errorWorkflow && !isErrorHandler) out.push({ json: { finding_type: \"DOD_NO_ERROR_WORKFLOW\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no error workflow configured\" } });\n  if (!s.executionTimeout || Number(s.executionTimeout) < 1) out.push({ json: { finding_type: \"DOD_NO_TIMEOUT\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no execution timeout set\" } });\n  let hasOwner = false;\n  for (const t of tags) { const tn = typeof t === \"string\" ? t : (t && t.name ? t.name : \"\"); if (tn.indexOf(\"owner:\") === 0) hasOwner = true; }\n  if (!hasOwner) out.push({ json: { finding_type: \"DOD_NO_OWNER\", severity: \"MEDIUM\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" has no owner: tag\" } });\n  if (!monitored[w.id]) out.push({ json: { finding_type: \"DOD_NOT_MONITORED\", severity: \"MEDIUM\", workflow_id: w.id, workflow_name: w.name, check: \"5-dod-lint\", detail: label + \" is active but not in sentinel_trigger_registry\" } });\n}\nreturn out;"
       },
       "id": "e804b7a2-5b08-4f83-a4e4-9282ccdb2e97",
       "name": "Lint Definition Of Done",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, 400],
+      "position": [
+        -336,
+        400
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -245,12 +415,30 @@
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "n8nApi",
         "sendQuery": true,
-        "queryParameters": { "parameters": [{ "name": "limit", "value": "250" }] },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "250"
+            }
+          ]
+        },
         "options": {
-          "response": { "response": { "neverError": true } },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "pagination": {
             "pagination": {
-              "parameters": { "parameters": [{ "name": "cursor", "value": "={{ $response.body.nextCursor }}" }] },
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "cursor",
+                    "value": "={{ $response.body.nextCursor }}"
+                  }
+                ]
+              },
               "paginationCompleteWhen": "other",
               "completeExpression": "={{ !$response.body.nextCursor }}",
               "limitPagesFetched": true,
@@ -264,32 +452,45 @@
       "name": "Fetch Workflows For Credentials",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-560, 608],
+      "position": [
+        -560,
+        608
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const pages = $input.all();\nconst wfs = [];\nlet good = 0;\nlet firstErr = \"\";\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  for (const w of j.data) wfs.push(w);\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"6-credential-map\", detail: \"could not list workflows: \" + firstErr + \". The credential map was NOT built this run.\" } }];\n}\nconst index = {};\nconst out = [];\nconst needsCred = [\"httpRequest\", \"slack\", \"gmail\", \"postgres\", \"mysql\", \"notion\", \"airtable\", \"googleSheets\", \"openAi\", \"telegram\", \"discord\", \"hubspot\", \"jira\", \"stripe\"];\nfor (const w of wfs) {\n  const nodes = Array.isArray(w.nodes) ? w.nodes : [];\n  const live = w.active === true && w.isArchived !== true;\n  for (const n of nodes) {\n    const creds = n.credentials || {};\n    const keys = Object.keys(creds);\n    if (keys.length === 0) {\n      const short = String(n.type || \"\").split(\".\").pop();\n      let requires = false;\n      for (const c of needsCred) { if (short === c) requires = true; }\n      if (requires && String(n.type).indexOf(\"n8n-nodes-base.httpRequest\") === 0 && n.parameters && n.parameters.authentication === \"none\") requires = false;\n      if (requires) out.push({ json: { finding_type: \"CREDENTIAL_MISSING\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"6-credential-map\", detail: \"node \\\"\" + n.name + \"\\\" in \" + w.name + \" requires a credential but none is set\" } });\n      continue;\n    }\n    for (const k of keys) {\n      const cname = creds[k] && creds[k].name ? creds[k].name : k;\n      if (!index[cname]) index[cname] = { workflows: [], anyLive: false };\n      index[cname].workflows.push(w.name + \" (\" + w.id + \")\");\n      if (live) index[cname].anyLive = true;\n    }\n  }\n}\nfor (const cname of Object.keys(index)) {\n  if (!index[cname].anyLive) {\n    out.push({ json: { finding_type: \"CREDENTIAL_ORPHAN\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: cname, check: \"6-credential-map\", detail: \"credential \\\"\" + cname + \"\\\" is referenced only by unpublished or archived workflows: \" + index[cname].workflows.join(\", \") } });\n  }\n}\nout.push({ json: { finding_type: \"CREDENTIAL_INDEX\", severity: \"INFO\", workflow_id: \"\", workflow_name: \"instance\", check: \"6-credential-map\", detail: JSON.stringify(index) } });\nreturn out;"
+        "jsCode": "const pages = $input.all();\nconst wfs = [];\nlet good = 0;\nlet firstErr = \"\";\nfor (const p of pages) {\n  const j = p && p.json ? p.json : null;\n  if (!j || j.error || !Array.isArray(j.data)) {\n    if (!firstErr) firstErr = j && j.error ? (j.error.message || \"API error\") : \"no response from the n8n API\";\n    continue;\n  }\n  good++;\n  for (const w of j.data) wfs.push(w);\n}\nif (good === 0) {\n  return [{ json: { finding_type: \"CHECK_BLIND\", severity: \"CRITICAL\", workflow_id: \"\", workflow_name: \"instance\", check: \"6-credential-map\", detail: \"could not list workflows: \" + firstErr + \". The credential map was NOT built this run.\" } }];\n}\nconst index = {};\nconst out = [];\nconst needsCred = [\"httpRequest\", \"slack\", \"gmail\", \"postgres\", \"mysql\", \"notion\", \"airtable\", \"googleSheets\", \"openAi\", \"telegram\", \"discord\", \"hubspot\", \"jira\", \"stripe\"];\nfor (const w of wfs) {\n  const nodes = Array.isArray(w.nodes) ? w.nodes : [];\n  const live = w.active === true && w.isArchived !== true;\n  for (const n of nodes) {\n    const creds = n.credentials || {};\n    const keys = Object.keys(creds);\n    if (keys.length === 0) {\n      const short = String(n.type || \"\").split(\".\").pop();\n      let requires = false;\n      for (const c of needsCred) { if (short === c) requires = true; }\n      const isHttp = String(n.type || \"\").indexOf(\"n8n-nodes-base.httpRequest\") === 0;\n      const auth = n.parameters ? n.parameters.authentication : undefined;\n      if (requires && isHttp && (auth === undefined || auth === null || auth === \"none\")) { requires = false; }\n      if (requires) out.push({ json: { finding_type: \"CREDENTIAL_MISSING\", severity: \"HIGH\", workflow_id: w.id, workflow_name: w.name, check: \"6-credential-map\", detail: \"node \\\"\" + n.name + \"\\\" in \" + w.name + \" requires a credential but none is set\" } });\n      continue;\n    }\n    for (const k of keys) {\n      const cname = creds[k] && creds[k].name ? creds[k].name : k;\n      if (!index[cname]) index[cname] = { seen: {}, workflows: [], anyLive: false, nodeCount: 0 };\n      const label = w.name + \" (\" + w.id + \")\";\n      index[cname].nodeCount++;\n      if (!index[cname].seen[label]) { index[cname].seen[label] = true; index[cname].workflows.push(label); }\n      if (live) index[cname].anyLive = true;\n    }\n  }\n}\nfor (const cname of Object.keys(index)) {\n  const e = index[cname];\n  if (e.workflows.length === 0) {\n    out.push({ json: { finding_type: \"CREDENTIAL_UNUSED\", severity: \"MEDIUM\", workflow_id: \"\", workflow_name: cname, check: \"6-credential-map\", detail: \"credential \\\"\" + cname + \"\\\" is not referenced by any workflow on this instance. Dead weight, and one more secret to rotate for no reason.\" } });\n  } else if (!e.anyLive) {\n    out.push({ json: { finding_type: \"CREDENTIAL_ONLY_IN_DRAFT\", severity: \"LOW\", workflow_id: \"\", workflow_name: cname, check: \"6-credential-map\", detail: \"credential \\\"\" + cname + \"\\\" is referenced by \" + e.nodeCount + \" node(s) across \" + e.workflows.length + \" workflow(s), none of them published: \" + e.workflows.join(\", \") + \". Normal on an instance full of drafts, worth a look if it stays that way.\" } });\n  }\n}\nconst slim = {};\nfor (const cname of Object.keys(index)) { slim[cname] = { workflows: index[cname].workflows, node_count: index[cname].nodeCount, any_live: index[cname].anyLive }; }\nout.push({ json: { finding_type: \"CREDENTIAL_INDEX\", severity: \"INFO\", workflow_id: \"\", workflow_name: \"instance\", check: \"6-credential-map\", detail: JSON.stringify(slim) } });\nreturn out;"
       },
       "id": "1be119b9-6efd-446d-be0c-a2c1cdb722cc",
       "name": "Map Credential Usage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, 608],
+      "position": [
+        -336,
+        608
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "operation": "get",
-        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_api_probes" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sentinel_api_probes"
+        },
         "returnAll": true
       },
       "id": "3a083cae-ccd1-4296-83f6-13ebc9690b4e",
       "name": "Read API Probes",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [-784, 800],
+      "position": [
+        -784,
+        800
+      ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
     },
@@ -297,13 +498,24 @@
       "parameters": {
         "method": "={{ $json.method }}",
         "url": "={{ $json.url }}",
-        "options": { "response": { "response": { "fullResponse": true, "neverError": true } }, "timeout": 15000 }
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
       },
       "id": "b8e98874-d073-4e76-b74f-6b4a1c3c588e",
       "name": "Run Vendor Probes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-560, 800],
+      "position": [
+        -560,
+        800
+      ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
     },
@@ -315,7 +527,10 @@
       "name": "Compare Probe Status",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-336, 800],
+      "position": [
+        -336,
+        800
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -326,14 +541,30 @@
       "name": "Score",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [144, 208]
+      "position": [
+        144,
+        208
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
           "conditions": [
-            { "id": "c1", "leftValue": "={{ $json.finding_type }}", "operator": { "type": "string", "operation": "notEquals" }, "rightValue": "SUMMARY" }
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.finding_type }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "SUMMARY"
+            }
           ],
           "combinator": "and"
         },
@@ -343,25 +574,46 @@
       "name": "Findings Only",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.2,
-      "position": [368, 80]
+      "position": [
+        368,
+        80
+      ]
     },
     {
       "parameters": {
         "operation": "rowNotExists",
-        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_findings" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sentinel_findings"
+        },
         "matchType": "allConditions",
-        "filters": { "conditions": [{ "keyName": "finding_key", "keyValue": "={{ $json.finding_key }}" }] }
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "finding_key",
+              "keyValue": "={{ $json.finding_key }}"
+            }
+          ]
+        }
       },
       "id": "ac747112-06a3-40cd-93a1-994db4b21e08",
       "name": "Only New Findings Today",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [592, 80],
+      "position": [
+        592,
+        80
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "dataTableId": { "__rl": true, "mode": "name", "value": "sentinel_findings" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "sentinel_findings"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
@@ -374,13 +626,69 @@
             "owner": "={{ $json.owner }}"
           },
           "schema": [
-            { "id": "finding_key", "displayName": "finding_key", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "finding_type", "displayName": "finding_type", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "severity", "displayName": "severity", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "workflow_id", "displayName": "workflow_id", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "detail", "displayName": "detail", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "detected_at", "displayName": "detected_at", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "owner", "displayName": "owner", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+            {
+              "id": "finding_key",
+              "displayName": "finding_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "finding_type",
+              "displayName": "finding_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_id",
+              "displayName": "workflow_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "detail",
+              "displayName": "detail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "detected_at",
+              "displayName": "detected_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "owner",
+              "displayName": "owner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
           ]
         },
         "options": {}
@@ -389,16 +697,40 @@
       "name": "Write Findings",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [800, 80],
+      "position": [
+        800,
+        80
+      ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
           "conditions": [
-            { "id": "d1", "leftValue": "={{ $json.finding_type }}", "operator": { "type": "string", "operation": "equals" }, "rightValue": "SUMMARY" },
-            { "id": "d2", "leftValue": "={{ $json.status }}", "operator": { "type": "string", "operation": "notEquals" }, "rightValue": "GREEN" }
+            {
+              "id": "d1",
+              "leftValue": "={{ $json.finding_type }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "SUMMARY"
+            },
+            {
+              "id": "d2",
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "GREEN"
+            }
           ],
           "combinator": "and"
         },
@@ -408,12 +740,19 @@
       "name": "Status RED Or AMBER",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [368, 320]
+      "position": [
+        368,
+        320
+      ]
     },
     {
       "parameters": {
         "select": "channel",
-        "channelId": { "__rl": true, "mode": "name", "value": "#platform-alerts" },
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#platform-alerts"
+        },
         "text": "={{ $json.alert_text }}",
         "otherOptions": {}
       },
@@ -421,113 +760,430 @@
       "name": "Send Consolidated Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
-      "position": [592, 320],
+      "position": [
+        592,
+        320
+      ],
       "onError": "continueRegularOutput"
     },
     {
-      "parameters": { "content": "## 1. Silent trigger death\nActive is not evidence of working. n8n-io/n8n #36388, #30871, #13646, #36075 are all open. Dead-man switch over the registry.", "height": 184, "width": 1332, "color": 3 },
+      "parameters": {
+        "content": "## 1. Silent trigger death\nActive is not evidence of working. n8n-io/n8n #36388, #30871, #13646, #36075 are all open. Dead-man switch over the registry.",
+        "height": 184,
+        "width": 1332,
+        "color": 3
+      },
       "id": "c797ea85-44c5-4f96-93dd-e685cbbba156",
       "name": "Sticky Note 43e0e903",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1392, -448]
+      "position": [
+        -1392,
+        -448
+      ]
     },
     {
-      "parameters": { "content": "## 2. Hung executions\nn8n-io/n8n #36343 (open): workflow execution timeout is not enforced in queue mode when a node hangs. Reports only, never cancels.", "height": 184, "width": 1220, "color": 3 },
+      "parameters": {
+        "content": "## 2. Hung executions\nn8n-io/n8n #36343 (open): workflow execution timeout is not enforced in queue mode when a node hangs. Reports only, never cancels.",
+        "height": 184,
+        "width": 1220,
+        "color": 3
+      },
       "id": "93e55f34-d772-43f5-982f-d54ef8ab0225",
       "name": "Sticky Note 927d44ce",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1392, -256]
+      "position": [
+        -1392,
+        -256
+      ]
     },
     {
-      "parameters": { "content": "## 3. Error spike\nFailures per workflow inside the lookback window.", "height": 200, "width": 1000, "color": 4 },
+      "parameters": {
+        "content": "## 3. Error spike\nFailures per workflow inside the lookback window.",
+        "height": 200,
+        "width": 1000,
+        "color": 4
+      },
       "id": "b50c3458-d7ef-421c-a44f-0669a51c4336",
       "name": "Sticky Note ed43a1e2",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1088, -48]
+      "position": [
+        -1088,
+        -48
+      ]
     },
     {
-      "parameters": { "content": "## 4. Retention and growth guard\nPaged count, capped at 10 pages. Is pruning keeping up?", "height": 200, "width": 1032, "color": 4 },
+      "parameters": {
+        "content": "## 4. Retention and growth guard\nPaged count, capped at 10 pages. Is pruning keeping up?",
+        "height": 200,
+        "width": 1032,
+        "color": 4
+      },
       "id": "c06a10c3-5a7c-4b5c-a804-a63613fba1f9",
       "name": "Sticky Note f512ae12",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1120, 160]
+      "position": [
+        -1120,
+        160
+      ]
     },
     {
-      "parameters": { "content": "## 5. Definition-of-Done lint\nError workflow, timeout, owner tag, registry coverage.", "height": 200, "width": 1508, "color": 5 },
+      "parameters": {
+        "content": "## 5. Definition-of-Done lint\nError workflow, timeout, owner tag, registry coverage.",
+        "height": 200,
+        "width": 1508,
+        "color": 5
+      },
       "id": "f3766b13-345a-4954-91f7-f8fd4796e468",
       "name": "Sticky Note 513a606c",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1600, 352]
+      "position": [
+        -1600,
+        352
+      ]
     },
     {
-      "parameters": { "content": "## 6. Credential reference map\nNote: n8n already does this. `n8n audit` reports credentials not used in a workflow, and credentials carry a Used by workflows list. This branch reimplements it so the result lands in the same findings table and severity model as the other six. See docs/07-platform-sentinel.md.", "height": 200, "width": 1256, "color": 5 },
+      "parameters": {
+        "content": "## 6. Credential reference map\nNote: n8n already does this. `n8n audit` reports credentials not used in a workflow, and credentials carry a Used by workflows list. This branch reimplements it so the result lands in the same findings table and severity model as the other six. See docs/07-platform-sentinel.md.",
+        "height": 200,
+        "width": 1256,
+        "color": 5
+      },
       "id": "a124d212-2025-444a-9c82-23e9c7793ed1",
       "name": "Sticky Note 2422795d",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1344, 560]
+      "position": [
+        -1344,
+        560
+      ]
     },
     {
-      "parameters": { "content": "## 7. Vendor API contract probes\nStatus code drift against the probe registry.", "height": 200, "width": 1316, "color": 6 },
+      "parameters": {
+        "content": "## 7. Vendor API contract probes\nStatus code drift against the probe registry.",
+        "height": 200,
+        "width": 1316,
+        "color": 6
+      },
       "id": "232fafb4-b63f-4f47-bbb5-9d16e6ac5606",
       "name": "Sticky Note b9132d0c",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1408, 752]
+      "position": [
+        -1408,
+        752
+      ]
     },
     {
-      "parameters": { "content": "## Merge, score, persist, alert\nDeduplicated by type + workflow + day. Silent on GREEN.\nGREEN is unreachable unless all seven checks completed - see docs/07-platform-sentinel.md", "height": 440, "width": 1164, "color": 7 },
+      "parameters": {
+        "content": "## Merge, score, persist, alert\nDeduplicated by type + workflow + day. Silent on GREEN.\nGREEN is unreachable unless all seven checks completed - see docs/07-platform-sentinel.md",
+        "height": 440,
+        "width": 1164,
+        "color": 7
+      },
       "id": "93ed208d-89f3-47b0-b2af-f47958fc3f91",
       "name": "Sticky Note 7a012748",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [112, 16]
+      "position": [
+        112,
+        16
+      ]
     }
   ],
   "connections": {
-    "Every 15 Minutes": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Config": {
-      "main": [[
-        { "node": "Read Trigger Registry", "type": "main", "index": 0 },
-        { "node": "Fetch Recent Executions", "type": "main", "index": 0 },
-        { "node": "Fetch Failed Executions", "type": "main", "index": 0 },
-        { "node": "Fetch All Executions Paged", "type": "main", "index": 0 },
-        { "node": "Fetch Workflows For DoD", "type": "main", "index": 0 },
-        { "node": "Fetch Workflows For Credentials", "type": "main", "index": 0 },
-        { "node": "Read API Probes", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Read Trigger Registry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Recent Executions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Failed Executions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch All Executions Paged",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Workflows For DoD",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Workflows For Credentials",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read API Probes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Read Trigger Registry": { "main": [[{ "node": "Fetch Last Success Per Workflow", "type": "main", "index": 0 }]] },
-    "Fetch Last Success Per Workflow": { "main": [[{ "node": "Detect Silent Triggers", "type": "main", "index": 0 }]] },
-    "Detect Silent Triggers": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 0 }]] },
-    "Fetch Recent Executions": { "main": [[{ "node": "Detect Hung Executions", "type": "main", "index": 0 }]] },
-    "Detect Hung Executions": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 1 }]] },
-    "Fetch Failed Executions": { "main": [[{ "node": "Detect Error Spikes", "type": "main", "index": 0 }]] },
-    "Detect Error Spikes": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 2 }]] },
-    "Fetch All Executions Paged": { "main": [[{ "node": "Detect Retention Breach", "type": "main", "index": 0 }]] },
-    "Detect Retention Breach": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 3 }]] },
-    "Fetch Workflows For DoD": { "main": [[{ "node": "Lint Definition Of Done", "type": "main", "index": 0 }]] },
-    "Lint Definition Of Done": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 4 }]] },
-    "Fetch Workflows For Credentials": { "main": [[{ "node": "Map Credential Usage", "type": "main", "index": 0 }]] },
-    "Map Credential Usage": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 5 }]] },
-    "Read API Probes": { "main": [[{ "node": "Run Vendor Probes", "type": "main", "index": 0 }]] },
-    "Run Vendor Probes": { "main": [[{ "node": "Compare Probe Status", "type": "main", "index": 0 }]] },
-    "Compare Probe Status": { "main": [[{ "node": "Merge All Checks", "type": "main", "index": 6 }]] },
-    "Merge All Checks": { "main": [[{ "node": "Score", "type": "main", "index": 0 }]] },
+    "Read Trigger Registry": {
+      "main": [
+        [
+          {
+            "node": "Fetch Last Success Per Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Last Success Per Workflow": {
+      "main": [
+        [
+          {
+            "node": "Detect Silent Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Silent Triggers": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Executions": {
+      "main": [
+        [
+          {
+            "node": "Detect Hung Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Hung Executions": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Fetch Failed Executions": {
+      "main": [
+        [
+          {
+            "node": "Detect Error Spikes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Error Spikes": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Fetch All Executions Paged": {
+      "main": [
+        [
+          {
+            "node": "Detect Retention Breach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Retention Breach": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Fetch Workflows For DoD": {
+      "main": [
+        [
+          {
+            "node": "Lint Definition Of Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lint Definition Of Done": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Fetch Workflows For Credentials": {
+      "main": [
+        [
+          {
+            "node": "Map Credential Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Credential Usage": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Read API Probes": {
+      "main": [
+        [
+          {
+            "node": "Run Vendor Probes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Vendor Probes": {
+      "main": [
+        [
+          {
+            "node": "Compare Probe Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Probe Status": {
+      "main": [
+        [
+          {
+            "node": "Merge All Checks",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Merge All Checks": {
+      "main": [
+        [
+          {
+            "node": "Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Score": {
-      "main": [[
-        { "node": "Findings Only", "type": "main", "index": 0 },
-        { "node": "Status RED Or AMBER", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Findings Only",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Status RED Or AMBER",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Findings Only": { "main": [[{ "node": "Only New Findings Today", "type": "main", "index": 0 }]] },
-    "Only New Findings Today": { "main": [[{ "node": "Write Findings", "type": "main", "index": 0 }]] },
-    "Status RED Or AMBER": { "main": [[{ "node": "Send Consolidated Alert", "type": "main", "index": 0 }]] }
+    "Findings Only": {
+      "main": [
+        [
+          {
+            "node": "Only New Findings Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only New Findings Today": {
+      "main": [
+        [
+          {
+            "node": "Write Findings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status RED Or AMBER": {
+      "main": [
+        [
+          {
+            "node": "Send Consolidated Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "settings": {
     "executionOrder": "v1",

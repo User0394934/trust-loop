@@ -111,18 +111,37 @@ What it needs to run for real:
 - **An n8n API credential** on the six fetch nodes, and your instance URL in `apiBase`.
 - **`sentinel_findings`** — `finding_key`, `finding_type`, `severity`, `workflow_id`, `detail`,
   `detected_at`, `owner`, all string.
-- **`sentinel_trigger_registry`** — `workflow_id`, `workflow_name`, `owner` as string,
-  `expected_interval_minutes` as number. Seed it with the workflows that matter to you; leave it empty
-  and check 1 reports `REGISTRY_EMPTY` rather than pretending to have looked.
+- **`sentinel_trigger_registry_v2`** — the workflows you actually want watched:
+
+  | column | type | meaning |
+  |---|---|---|
+  | `workflow_id`, `workflow_name`, `owner` | string | who and what |
+  | `expected_interval_minutes` | number | how often a success is expected (check 1) |
+  | `sla_minutes` | number | how long a run may take before it counts as hung (check 2) |
+  | `expected_outcome` | string | `success`, `on_demand`, or `failure` |
+
+  `expected_outcome` is the part worth explaining. A dead-man switch that assumes every workflow
+  should succeed on a timer generates noise about workflows that are supposed to sit idle, and stays
+  silent about the one case that actually matters — a test designed to fail which has quietly started
+  passing. `on_demand` means silence is not a fault. `failure` inverts the check and raises
+  `UNEXPECTED_SUCCESS`, because a test that stops failing has stopped testing anything.
+
+  Leave the table empty and check 1 reports `REGISTRY_EMPTY` rather than pretending to have looked.
 - **`sentinel_api_probes`** — `probe_name`, `vendor`, `url`, `method` as string, `expected_status` as
   number. Empty gives you `PROBES_EMPTY`, again by design.
 - Optionally a Discord webhook on `Send Consolidated Alert`.
 
-**One disclosure.** My own instance has since moved to a registry with an `expected_outcome` column,
-a three-value model separating workflows that must succeed on a schedule from ones that only run on
-demand and ones designed to fail. The version published here does **not** implement that; it is the
-simpler interval-based check, and the schema above is the one its code actually reads. I would rather
-say that than quietly ship a table name whose documented columns the workflow ignores.
+**One disclosure, and how it was found.** Three of the Sentinel's eight Code nodes published here were
+an older build than the one running on my instance — `Detect Silent Triggers` was missing the
+`expected_outcome` model entirely, and `Lint Definition Of Done` and `Map Credential Usage` had both
+moved on. Nothing gave a wrong verdict, unlike the Recorder, but it was the same drift in the same
+direction: the instance improves, the folder does not, and a reader gets whatever was true on the day
+it was exported.
+
+All three are now byte-identical to what runs, verified by hashing each block against the live
+workflow rather than by looking at them. The four unchanged detectors — hung executions, error spikes,
+retention, vendor probes — and `Score` were already identical, which is why the status logic described
+in `07` matches what you get here.
 
 Also worth knowing before you wire it to a channel: the alerting has no state, so while something is
 failing it will send the same message every fifteen minutes and say nothing at all when it recovers.
