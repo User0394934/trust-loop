@@ -5,6 +5,19 @@ Eight stages an AI automation should pass before anyone depends on it, built as 
 It started as a single workflow and turned into something I actually wanted to argue about, so I wrote it
 down properly.
 
+![The Agent Flight Recorder returning SUSPECT with fingerprint a834ed58f0de4b1e, having caught an AI agent whose tool failed inside an HTTP 200 while its answer never mentioned it](docs/img/recorder-suspect-verdict.jpg)
+
+That screenshot is a fresh import of
+[`workflows/agent-flight-recorder.json`](workflows/agent-flight-recorder.json) from this repository into
+an empty n8n workflow, run with **no credentials and no data tables configured**. The agent it is
+examining reported success. Its tool had returned `{"error": "No Orders found for customer id :  "}`
+inside an HTTP 200, and the answer never mentioned it.
+
+You should get the same fingerprint, `a834ed58f0de4b1e`. If you do not, one of us is wrong and the
+difference is inspectable — see [`docs/09-run-it-yourself.md`](docs/09-run-it-yourself.md). CI checks
+that number on every push, because this repo has already shipped a workflow its own documentation
+called broken.
+
 ---
 
 ## The problem I kept running into
@@ -97,6 +110,8 @@ docs/
   09-run-it-yourself.md          how to run these without my instance, and the number you should get
 fixtures/
   agent-execution-silent-recovery.json   invented agent run: green tick, failed tool, answer that hides it
+tests/
+  verify.mjs                     shape, anonymity, and the fingerprint the docs promise. CI runs this
 workflows/
   determinism-advisor.json       10 nodes
   replay-cassette.json           10 nodes, live webhook
