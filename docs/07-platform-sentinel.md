@@ -365,6 +365,13 @@ A correction, added later. Every GREEN this document reports was produced by a m
 evidence that many occurred and were discarded unrecorded. The GREEN at 7 of 7 is real. It was
 produced by hand. See Part 7.
 
+That caveat has now expired, and it is worth saying so plainly. By 19 August the instance held 124
+recorded executions of this workflow, firing on the quarter hour without supervision, and both
+branches of the diagram above have been reached unattended: GREEN at 7 of 7 on scheduled runs, and
+AMBER on a real third-party outage rather than a rehearsal. Coverage has stayed at 7 of 7 with zero
+blind checks across every scheduled run examined. What the tool claims about itself, it now claims
+on evidence it produced while nobody was watching. See Part 8, which is the bill for that.
+
 ---
 
 ## Part 5. Honest limitations
@@ -483,6 +490,71 @@ whether the target workflow's settings allow a successful run to be recorded at 
 rather than SILENT_TRIGGER when they do not. Absence of a record is only evidence of absence when records are
 being kept. Until that is fixed the check is sound only on workflows configured to save successful executions,
 and it should say so.
+
+---
+
+## Part 8. The third failure: deduplication that protects the database and not the reader
+
+Part 3 was a status that said GREEN while checking almost nothing. Part 7 was a correct check reaching a false
+conclusion because the evidence had been deleted underneath it. This one is smaller, it is entirely my fault,
+and it is the one most likely to be sitting in someone else's production instance right now.
+
+On 19 August the Sentinel spent the day alternating between GREEN and AMBER. The cause was honest: one of the
+vendor probes, `httpbin-contract-canary`, was intermittently failing — 504 at 14:00, 503 at 14:15, healthy in
+between. A HIGH `VENDOR_PROBE_FAIL` drives the status to AMBER, so the status followed the vendor up and down.
+That part is the tool working. A canary that never fires is a canary you cannot trust, and this one fired
+against a genuine outage nobody staged.
+
+Here is what six sampled scheduled runs actually did:
+
+| Run | Time (UTC) | Status | Discord message sent |
+|---|---|---|---|
+| 320 | 07:30 | GREEN | no |
+| 329 | 09:45 | AMBER | **yes** |
+| 334 | 11:00 | GREEN | no |
+| 338 | 12:00 | AMBER | **yes** |
+| 346 | 14:00 | AMBER | **yes** |
+| 347 | 14:15 | AMBER | **yes** |
+
+On every one of those AMBER runs `Send Consolidated Alert` returned `{"success": true}`, and the message body
+was byte-for-byte the same five findings each time, give or take the probe's status code.
+
+Now the part that matters. On those same runs, `Only New Findings Today` returned **zero items**. The
+deduplication described in Part 2 worked exactly as designed — it recognised every finding as already seen and
+wrote nothing to the table. The alert went out anyway.
+
+The reason is structural rather than clever. The findings branch runs `Findings Only` → `Only New Findings
+Today` → the table. The alert branch runs `Score` → `Status RED Or AMBER` → Discord. They are siblings, not a
+sequence. The dedupe sits on one branch and the notification sits on the other, so the key that stops a
+duplicate row has no authority over a duplicate message.
+
+The effect, stated without softening:
+
+- While a vendor is down, the same alert repeats every fifteen minutes — up to 96 identical messages a day.
+- Recovery is silent. Nothing is sent when the status returns to GREEN, so a reader seeing two alerts an hour
+  apart cannot tell whether the problem persisted through the gap or cleared and came back. On 19 August it
+  cleared and came back, and the channel gave no way to know that.
+- The two failure modes compound. A flapping dependency produces a stream of identical alarms punctuated by
+  unannounced recoveries, which is the precise recipe for a channel people learn to scroll past.
+
+The lesson I actually take from it: I designed deduplication as a **storage** concern, wrote a paragraph in
+Part 2 about how it keeps one problem to one row, and felt finished. Deduplication is a **notification**
+concern. The database was never the thing at risk of being drowned; the person reading was. Getting the
+storage half right made the gap harder to see, because the mechanism existed, was correct, and was tested.
+
+What I would change, in order:
+
+1. Alert on **transitions**, not on state. GREEN→AMBER sends; AMBER→AMBER stays quiet; AMBER→GREEN sends a
+   recovery notice. This alone removes both symptoms.
+2. Keep a low-frequency digest so a long-running problem cannot be forgotten just because it stopped being
+   news — silence should mean "unchanged", never "unwatched".
+3. Require a probe to fail twice consecutively before it moves the status, so a single flap does not page
+   anyone. Flapping is a property of the dependency and should be absorbed by the monitor, not forwarded.
+
+Three failures now, and they rhyme. A status that overstated its coverage, a check that reasoned correctly
+from deleted evidence, and a notification that was correct on every individual message and wrong as a stream.
+None of them were caught by testing the component. All three were caught by leaving it running and reading
+what it actually produced.
 
 ---
 

@@ -360,6 +360,38 @@ It arrives. The `SILENT_RECOVERY` above is the message, delivered to a chat chan
 and quoting what it returned. That was the last claim in this repo that rested on "it should work",
 and it does not rest on that any more.
 
+### Re-run a day later, to see whether any of it was luck
+
+Everything above was written on the day it happened, which is the worst moment to trust it. So on 19
+August the Recorder was pointed at the same agent execution again, cold, nearly a day after the
+original catch.
+
+It returned the same verdict — `SUSPECT` — from the same single `SILENT_RECOVERY` at HIGH, with the
+same sentence about the agent writing around a broken step. The reconstruction found one tool call,
+zero successful, one failed, `evidence_complete: true`, zero redactions. And the pack it sealed
+carried the fingerprint `a834ed58f0de4b1e`, which is the fingerprint of the pack sealed the day
+before.
+
+That is the first real evidence that the fingerprint is worth anything. Up to that point it was a
+hash of a thing computed once, which proves nothing at all — a hash that has only ever been computed
+once cannot be said to be reproducible. Two independent runs, a day apart, reaching the same
+sixteen hex characters means the reconstruction is genuinely deterministic over a fixed execution
+record, and that a stored pack can be recomputed and compared rather than merely believed.
+
+**What it still does not prove.** The input was frozen: the same execution, already finished, read
+twice. This shows the pipeline is stable, not that the fingerprint is sensitive — nothing here
+demonstrates that a *changed* ledger produces a *different* hash, which is the property that would
+actually make tampering detectable. That test has not been run and the claim should not be made
+until it has.
+
+**And one thing it exposed.** On the re-run, `Only New Packs` returned zero items, correctly
+recognising that this pack was already stored. `Send Recorder Alert` fired anyway and returned
+`{"success": true}`. It is the same asymmetry documented in Part 8 of
+[`07-platform-sentinel.md`](07-platform-sentinel.md): the deduplication guards what gets written and
+has no authority over what gets sent. Here it is milder, because this workflow is triggered by hand
+rather than every fifteen minutes, but it is the same bug in the same place, and finding it twice in
+two workflows suggests it is a shape worth looking for rather than an accident.
+
 ---
 
 ## Part 6. The evidence pack, and why it is shaped like that

@@ -54,6 +54,9 @@ If you would rather see the argument fail in practice than be asserted, open
 [`docs/07-platform-sentinel.md`](docs/07-platform-sentinel.md). I built a monitoring workflow, its
 first run reported GREEN across the board, and it had actually checked one seventh of what it
 claimed. Four bugs, an execution log, and the fix that makes GREEN something the tool has to earn.
+It has since failed twice more, in ways I did not predict and would not have found by testing it:
+once by reasoning correctly from evidence that had been deleted underneath it, and once by sending a
+perfectly correct alert every fifteen minutes until it became wallpaper. Those are Parts 7 and 8.
 
 If you want the one that thinks ahead rather than backwards, open
 [`docs/08-agent-flight-recorder.md`](docs/08-agent-flight-recorder.md). Three open n8n issues mean an AI agent cannot
