@@ -120,10 +120,10 @@
         110
       ],
       "parameters": {
-        "content": "## Determinism Advisor - should this even be an agent?\n\nn8n says it plainly: *\"Not everything should be automated. Not everything should be agentic. The magic is knowing what belongs where.\"*\n\nToday nothing in the product answers that question. People wire an AI Agent node into a step that is pure string extraction, then wonder why the output changes every Tuesday.\n\nThis reads a workflow step by step and gives each one a verdict: **DETERMINISTIC**, **AGENTIC**, or **HUMAN** - with the reason, the daily cost of getting it wrong, and a refactor plan.",
+        "content": "## Determinism Advisor - should this even be an agent?\n\nn8n says it plainly: *\"Not everything should be automated. Not everything should be agentic. The magic is knowing what belongs where.\"*\n\nToday nothing in the product answers that question. People wire an AI Agent node into a step that is pure string extraction, then wonder why the output changes every Tuesday.\n\nThis reads a workflow step by step and gives each one a verdict: **DETERMINISTIC**, **AGENTIC**, or **HUMAN** - with the reason, the daily cost of getting it wrong, and a refactor plan.\n\n### Where this data comes from\nThe input is seeded in a Code node so the workflow runs end to end with no credentials and no setup. The mechanism is real and the scoring is real. The numbers are invented. Nothing this workflow outputs is an observation about real users, and it does not claim to be.",
         "color": 4,
         "width": 540,
-        "height": 200
+        "height": 350
       }
     },
     {

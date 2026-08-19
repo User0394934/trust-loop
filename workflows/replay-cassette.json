@@ -97,7 +97,7 @@
     },
     {
       "id": "eb4d2f05-d709-4bdd-aaf9-a50df3485bdb",
-      "name": "Call The Real Model Once",
+      "name": "Stand In For The First Model Call",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -106,7 +106,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const d = $input.first().json;\nconst answer = '{\\\"invoice_number\\\":\\\"DE-2026-00871\\\"}';\nreturn [{ json: {\n  id: 'chatcmpl-live-' + d.cassette_key,\n  object: 'chat.completion',\n  model: d.request.model,\n  choices: [{ index: 0, message: { role: 'assistant', content: answer }, finish_reason: 'stop' }],\n  x_cassette: { mode: 'RECORD', key: d.cassette_key, cost_cents: 1.8, note: 'First time this exact request was seen. Response written to the tape; every future run replays it for free.' }\n} }];"
+        "jsCode": "// STUB, on purpose. The routing, hashing and cache logic above are real and execute.\n// This node stands in for the upstream provider call so the workflow runs with no key.\nconst d = $input.first().json;\nconst answer = '{\\\"invoice_number\\\":\\\"DE-2026-00871\\\"}';\nreturn [{ json: {\n  id: 'chatcmpl-stub-' + d.cassette_key,\n  object: 'chat.completion',\n  model: d.request.model,\n  choices: [{ index: 0, message: { role: 'assistant', content: answer }, finish_reason: 'stop' }],\n  x_cassette: { mode: 'RECORD', key: d.cassette_key, cost_cents: 1.8, note: 'STUB. This node does not call a model - it returns a fixed response so the cache-miss path executes without a key or a bill. cost_cents is illustrative. Swap this node for an HTTP Request to your provider and the rest of the workflow is unchanged.' }\n} }];"
       }
     },
     {
@@ -134,10 +134,10 @@
         126
       ],
       "parameters": {
-        "content": "## Replay Cassette - a deterministic model provider you can point n8n at\n\nEvery eval, every regression test, every CI run in this suite has the same problem: **calling a real model costs money and gives a different answer each time.** So nobody runs them on every commit, and evals quietly rot.\n\nThis is an OpenAI-compatible endpoint that sits in front of the real one. First time it sees a request it calls the model, answers, and writes the response to the tape. Every time after that it replays the recorded bytes: **zero cost, zero latency, byte-identical.**\n\nPoint your AI Agent node at this URL in CI and at the real provider in production.",
+        "content": "## Replay Cassette - a deterministic model provider you can point n8n at\n\nEvery eval, every regression test, every CI run in this suite has the same problem: **calling a real model costs money and gives a different answer each time.** So nobody runs them on every commit, and evals quietly rot.\n\nThis is an OpenAI-compatible endpoint that sits in front of the real one. First time it sees a request it calls the model, answers, and writes the response to the tape. Every time after that it replays the recorded bytes: **zero cost, zero latency, byte-identical.**\n\nPoint your AI Agent node at this URL in CI and at the real provider in production.\n\n### What is real here and what is not\nThe webhook, the request fingerprint, the cache-hit branch and the response shape are real and execute. The tape is an in-memory object in a Code node, and the cache-miss branch returns a fixed answer instead of calling a provider, so this runs with no API key and no bill.\n\nIt speaks the OpenAI chat-completions response shape on purpose, so an existing client can point at it unchanged. It does not integrate OpenAI and contains no OpenAI node.",
         "color": 4,
         "width": 540,
-        "height": 200
+        "height": 390
       }
     },
     {
@@ -207,7 +207,7 @@
         ],
         [
           {
-            "node": "Call The Real Model Once",
+            "node": "Stand In For The First Model Call",
             "type": "main",
             "index": 0
           }
@@ -225,7 +225,7 @@
         ]
       ]
     },
-    "Call The Real Model Once": {
+    "Stand In For The First Model Call": {
       "main": [
         [
           {

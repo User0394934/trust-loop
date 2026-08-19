@@ -181,10 +181,10 @@
         158
       ],
       "parameters": {
-        "content": "## Regret Log - the approval gate that grades itself\n\nHuman-in-the-loop is in the JD. Everyone builds it the same way: an approval node with one confidence threshold, forever.\n\nNobody measures the only number that matters - **how often did the human actually change anything?**\n\nIf the answer is 1%, that gate is not review. It is a queue that trained people to click Approve without reading, which is worse than no gate because it manufactures the *appearance* of oversight.",
+        "content": "## Regret Log - the approval gate that grades itself\n\nHuman-in-the-loop is in the JD. Everyone builds it the same way: an approval node with one confidence threshold, forever.\n\nNobody measures the only number that matters - **how often did the human actually change anything?**\n\nIf the answer is 1%, that gate is not review. It is a queue that trained people to click Approve without reading, which is worse than no gate because it manufactures the *appearance* of oversight.\n\n### Where this data comes from\nThe input is seeded in a Code node so the workflow runs end to end with no credentials and no setup. The mechanism is real and the scoring is real. The numbers are invented. Nothing this workflow outputs is an observation about real users, and it does not claim to be.",
         "color": 4,
         "width": 540,
-        "height": 200
+        "height": 350
       }
     },
     {

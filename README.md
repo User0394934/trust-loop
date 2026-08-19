@@ -58,7 +58,7 @@ If you only open one file, open [`docs/03-determinism-advisor.md`](docs/03-deter
 would defend hardest, and it is the only workflow here that argues a product should do *less*.
 
 If you want to see something that actually executes rather than models, open
-[`docs/04-replay-cassette.md`](docs/04-replay-cassette.md). That one is a live webhook.
+[`docs/04-replay-cassette.md`](docs/04-replay-cassette.md). That one is a live webhook, and it is explicit about which half of it is stubbed.
 
 If you want to know what I think is wrong with this repo, open
 [`docs/06-limitations.md`](docs/06-limitations.md). I would read that one second.
@@ -102,7 +102,7 @@ docs/
   01-why-this-exists.md          the thesis, in one page
   02-the-eight-stages.md         the architecture and why it is a loop
   03-determinism-advisor.md      deep dive on the flagship
-  04-replay-cassette.md          deep dive on the one that really runs
+  04-replay-cassette.md          deep dive on the live endpoint, and what inside it is stubbed
   05-what-i-would-ship-first.md  prioritisation, with the reasoning shown
   06-limitations.md              what is stubbed, what I would fix, in what order
   07-platform-sentinel.md        a monitor, the four bugs it hid from me, and the fix
