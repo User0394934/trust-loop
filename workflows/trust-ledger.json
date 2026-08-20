@@ -8,7 +8,7 @@
       "typeVersion": 1.3,
       "position": [
         0,
-        208
+        992
       ],
       "parameters": {
         "rule": {
@@ -28,7 +28,7 @@
       "typeVersion": 2,
       "position": [
         240,
-        208
+        992
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -42,7 +42,7 @@
       "typeVersion": 2,
       "position": [
         480,
-        208
+        1632
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -55,8 +55,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        760,
-        208
+        768,
+        1632
       ],
       "parameters": {
         "rules": {
@@ -141,8 +141,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1020,
-        32
+        1024,
+        416
       ],
       "parameters": {}
     },
@@ -152,8 +152,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1020,
-        208
+        1024,
+        992
       ],
       "parameters": {}
     },
@@ -163,8 +163,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1020,
-        384
+        1024,
+        1168
       ],
       "parameters": {}
     },
@@ -174,14 +174,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -50,
-        158
+        -48,
+        544
       ],
       "parameters": {
         "content": "## Trust Ledger - a grade on every template in the library\n\nRight now n8n's library sorts by popularity. A template with 8,800 installs and 17 incidents looks identical to one with 41,200 installs and none. Install count is a measure of marketing, not of whether the thing works.\n\nThis computes a trust score per template from six signals and publishes it as a grade: **eval pass rate, fuzz survival, injection resistance, cost variance, days since last verified, and 90-day incident count.**\n\n### Where this data comes from\nThe input is seeded in a Code node so the workflow runs end to end with no credentials and no setup. The mechanism is real and the scoring is real. The numbers are invented. Nothing this workflow outputs is an observation about real users, and it does not claim to be.",
         "color": 4,
         "width": 540,
-        "height": 350
+        "height": 608
       }
     },
     {
@@ -190,14 +190,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        430,
-        158
+        432,
+        1184
       ],
       "parameters": {
         "content": "## The rule that makes it honest\n\n**A template with no evals is capped at 49/100 no matter how popular it is.**\n\nPopularity is not evidence. The cap is what turns the badge from a vanity metric into an incentive: the only way past a C is to write the evals, and the platform hands you the harness to do it.\n\nThat is how you get 650k builders to adopt eval practice without ever writing a docs page about why they should.",
         "color": 3,
         "width": 580,
-        "height": 200
+        "height": 608
       }
     },
     {
@@ -206,14 +206,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        970,
-        -18
+        976,
+        -16
       ],
       "parameters": {
         "content": "## Why this is a ten-year moat and not a feature\n\nAnyone can host templates. **Only n8n can grade them**, because only n8n sees the executions - the failures, the retries, the cost curves, the injection attempts, across every install of every template.\n\nThat data exists today and is thrown away. Turn it into a public trust signal and the library stops being a gallery and becomes the thing enterprises are actually buying: **automation you can prove is safe to depend on.**",
         "color": 5,
         "width": 300,
-        "height": 376
+        "height": 1168
       }
     }
   ],

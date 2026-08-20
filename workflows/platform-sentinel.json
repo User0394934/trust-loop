@@ -18,7 +18,7 @@
       "typeVersion": 1.3,
       "position": [
         -1200,
-        400
+        976
       ]
     },
     {
@@ -71,7 +71,7 @@
       "typeVersion": 3.5,
       "position": [
         -1008,
-        400
+        976
       ]
     },
     {
@@ -90,7 +90,7 @@
       "typeVersion": 1.1,
       "position": [
         -784,
-        -416
+        -320
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
@@ -136,7 +136,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        -416
+        -320
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -151,7 +151,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        -416
+        -320
       ],
       "onError": "continueRegularOutput"
     },
@@ -165,7 +165,7 @@
       "typeVersion": 3.2,
       "position": [
         -16,
-        112
+        464
       ]
     },
     {
@@ -200,8 +200,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        -780,
-        -200
+        -784,
+        16
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
@@ -217,7 +217,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        -208
+        0
       ],
       "onError": "continueRegularOutput"
     },
@@ -258,7 +258,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        0
+        336
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -273,7 +273,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        0
+        336
       ],
       "onError": "continueRegularOutput"
     },
@@ -326,7 +326,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        208
+        656
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -341,7 +341,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        208
+        656
       ],
       "onError": "continueRegularOutput"
     },
@@ -389,8 +389,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        -780,
-        400
+        -784,
+        976
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -405,7 +405,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        400
+        976
       ],
       "onError": "continueRegularOutput"
     },
@@ -454,7 +454,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        608
+        1312
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -469,7 +469,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        608
+        1312
       ],
       "onError": "continueRegularOutput"
     },
@@ -489,7 +489,7 @@
       "typeVersion": 1.1,
       "position": [
         -784,
-        800
+        1632
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
@@ -514,7 +514,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        800
+        1632
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -529,7 +529,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        800
+        1632
       ],
       "onError": "continueRegularOutput"
     },
@@ -543,7 +543,7 @@
       "typeVersion": 2,
       "position": [
         144,
-        208
+        640
       ]
     },
     {
@@ -576,7 +576,7 @@
       "typeVersion": 2.2,
       "position": [
         368,
-        80
+        432
       ]
     },
     {
@@ -603,7 +603,7 @@
       "typeVersion": 1.1,
       "position": [
         592,
-        80
+        432
       ],
       "onError": "continueRegularOutput"
     },
@@ -699,7 +699,7 @@
       "typeVersion": 1.1,
       "position": [
         800,
-        80
+        432
       ],
       "onError": "continueRegularOutput"
     },
@@ -733,7 +733,7 @@
       "typeVersion": 2.3,
       "position": [
         368,
-        320
+        752
       ]
     },
     {
@@ -753,14 +753,14 @@
       "typeVersion": 2.7,
       "position": [
         944,
-        256
+        688
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "content": "## 1. Silent trigger death\nActive is not evidence of working. n8n-io/n8n #36388, #30871, #13646, #36075 are all open. Dead-man switch over the registry.",
-        "height": 184,
+        "height": 288,
         "width": 1332,
         "color": 3
       },
@@ -776,7 +776,7 @@
     {
       "parameters": {
         "content": "## 2. Hung executions\nn8n-io/n8n #36343 (open): workflow execution timeout is not enforced in queue mode when a node hangs. Reports only, never cancels.",
-        "height": 184,
+        "height": 304,
         "width": 1220,
         "color": 3
       },
@@ -786,13 +786,13 @@
       "typeVersion": 1,
       "position": [
         -1392,
-        -256
+        -128
       ]
     },
     {
       "parameters": {
         "content": "## 3. Error spike\nFailures per workflow inside the lookback window.",
-        "height": 200,
+        "height": 288,
         "width": 1000,
         "color": 4
       },
@@ -802,13 +802,13 @@
       "typeVersion": 1,
       "position": [
         -1088,
-        -48
+        208
       ]
     },
     {
       "parameters": {
         "content": "## 4. Retention and growth guard\nPaged count, capped at 10 pages. Is pruning keeping up?",
-        "height": 200,
+        "height": 288,
         "width": 1032,
         "color": 4
       },
@@ -818,13 +818,13 @@
       "typeVersion": 1,
       "position": [
         -1120,
-        160
+        528
       ]
     },
     {
       "parameters": {
         "content": "## 5. Definition-of-Done lint\nError workflow, timeout, owner tag, registry coverage.",
-        "height": 200,
+        "height": 288,
         "width": 1508,
         "color": 5
       },
@@ -834,13 +834,13 @@
       "typeVersion": 1,
       "position": [
         -1600,
-        352
+        848
       ]
     },
     {
       "parameters": {
         "content": "## 6. Credential reference map\nNote: n8n already does this. `n8n audit` reports credentials not used in a workflow, and credentials carry a Used by workflows list. This branch reimplements it so the result lands in the same findings table and severity model as the other six. See docs/07-platform-sentinel.md.",
-        "height": 200,
+        "height": 304,
         "width": 1256,
         "color": 5
       },
@@ -850,13 +850,13 @@
       "typeVersion": 1,
       "position": [
         -1344,
-        560
+        1168
       ]
     },
     {
       "parameters": {
         "content": "## 7. Vendor API contract probes\nStatus code drift against the probe registry.",
-        "height": 200,
+        "height": 288,
         "width": 1316,
         "color": 6
       },
@@ -866,13 +866,13 @@
       "typeVersion": 1,
       "position": [
         -1408,
-        752
+        1504
       ]
     },
     {
       "parameters": {
         "content": "## Merge, score, persist, alert\nFindings dedupe by type + workflow + day. Alerts are separate: they fire on a\nstatus CHANGE, not on every run, and a recovery is announced explicitly.\nSee docs/07 Part 8 for why those are two different problems.",
-        "height": 440,
+        "height": 640,
         "width": 1164,
         "color": 7
       },
@@ -882,7 +882,7 @@
       "typeVersion": 1,
       "position": [
         112,
-        16
+        272
       ]
     },
     {
@@ -901,7 +901,7 @@
       "typeVersion": 1.1,
       "position": [
         512,
-        256
+        688
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
@@ -917,7 +917,7 @@
       "typeVersion": 2,
       "position": [
         656,
-        256
+        688
       ],
       "notes": "GREEN->AMBER speaks. AMBER->AMBER stays quiet. AMBER->GREEN sends a recovery notice. A 24h reminder stops a long outage going silent."
     },
@@ -952,7 +952,7 @@
       "typeVersion": 2.3,
       "position": [
         800,
-        256
+        688
       ]
     },
     {
@@ -989,7 +989,7 @@
       "typeVersion": 1.1,
       "position": [
         800,
-        432
+        944
       ],
       "onError": "continueRegularOutput"
     }

@@ -19,7 +19,7 @@
       "typeVersion": 1.2,
       "position": [
         -1440,
-        200
+        496
       ]
     },
     {
@@ -30,7 +30,7 @@
       "typeVersion": 1,
       "position": [
         -1440,
-        440
+        848
       ]
     },
     {
@@ -53,7 +53,7 @@
       "typeVersion": 3.5,
       "position": [
         -1200,
-        440
+        848
       ]
     },
     {
@@ -99,8 +99,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        -1080,
-        304
+        -1088,
+        704
       ]
     },
     {
@@ -132,7 +132,7 @@
       "typeVersion": 4.5,
       "position": [
         -720,
-        300
+        704
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -147,7 +147,7 @@
       "typeVersion": 2,
       "position": [
         -480,
-        300
+        704
       ],
       "onError": "continueRegularOutput"
     },
@@ -161,7 +161,7 @@
       "typeVersion": 2,
       "position": [
         -240,
-        300
+        704
       ],
       "onError": "continueRegularOutput"
     },
@@ -175,7 +175,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        300
+        704
       ]
     },
     {
@@ -202,7 +202,7 @@
       "typeVersion": 1.1,
       "position": [
         240,
-        180
+        288
       ],
       "onError": "continueRegularOutput"
     },
@@ -338,7 +338,7 @@
       "typeVersion": 1.1,
       "position": [
         480,
-        180
+        288
       ],
       "onError": "continueRegularOutput"
     },
@@ -372,7 +372,7 @@
       "typeVersion": 2.3,
       "position": [
         240,
-        440
+        848
       ]
     },
     {
@@ -392,14 +392,14 @@
       "typeVersion": 2.7,
       "position": [
         480,
-        440
+        848
       ],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "content": "## Input\n**Ships with `useSyntheticData` ON, so it runs with no credentials and no data tables.**\nHit Execute and you should get verdict SUSPECT, fingerprint a834ed58f0de4b1e.\n\nSet `useSyntheticData` to false in Config to point it at a real execution_id on your own\ninstance - that path needs an n8n API credential and the recorder_evidence_packs table.\nIt reads the execution record, which is where the real tool calls survive even when memory\nand log streaming drop them (n8n-io/n8n #14361, #28532).",
-        "height": 460,
+        "height": 768,
         "width": 900,
         "color": 3
       },
@@ -408,14 +408,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1500,
-        140
+        -1504,
+        256
       ]
     },
     {
       "parameters": {
         "content": "## Ledger, then reconciliation\nRebuild what the agent ACTUALLY did, then compare it with what the agent SAID it did. Secrets are masked before anything is stored.",
-        "height": 260,
+        "height": 320,
         "width": 480,
         "color": 5
       },
@@ -424,14 +424,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -540,
-        240
+        -544,
+        544
       ]
     },
     {
       "parameters": {
         "content": "## Seal, store, alert\nOne pack per examination, keyed on execution + fingerprint. Re-checking an execution and reaching a different verdict appends a row rather than being blocked. CLEAN is unreachable when the record is partial or missing.",
-        "height": 420,
+        "height": 880,
         "width": 720,
         "color": 7
       },
@@ -440,8 +440,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -60,
-        120
+        -64,
+        128
       ]
     },
     {
@@ -475,7 +475,7 @@
       "typeVersion": 2.3,
       "position": [
         -880,
-        304
+        704
       ]
     },
     {
@@ -488,7 +488,7 @@
       "typeVersion": 2,
       "position": [
         -720,
-        460
+        864
       ]
     }
   ],

@@ -8,7 +8,7 @@
       "typeVersion": 2.1,
       "position": [
         0,
-        176
+        1664
       ],
       "parameters": {
         "httpMethod": "POST",
@@ -25,7 +25,7 @@
       "typeVersion": 2,
       "position": [
         240,
-        176
+        1664
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -39,7 +39,7 @@
       "typeVersion": 2.2,
       "position": [
         480,
-        176
+        896
       ],
       "parameters": {
         "conditions": {
@@ -73,7 +73,7 @@
       "typeVersion": 2,
       "position": [
         720,
-        48
+        240
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -86,8 +86,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1000,
-        48
+        992,
+        240
       ],
       "parameters": {
         "respondWith": "json",
@@ -102,7 +102,7 @@
       "typeVersion": 2,
       "position": [
         720,
-        304
+        1312
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -115,8 +115,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1000,
-        304
+        992,
+        1312
       ],
       "parameters": {
         "respondWith": "json",
@@ -130,14 +130,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -50,
-        126
+        -48,
+        1088
       ],
       "parameters": {
         "content": "## Replay Cassette - a deterministic model provider you can point n8n at\n\nEvery eval, every regression test, every CI run in this suite has the same problem: **calling a real model costs money and gives a different answer each time.** So nobody runs them on every commit, and evals quietly rot.\n\nThis is an OpenAI-compatible endpoint that sits in front of the real one. First time it sees a request it calls the model, answers, and writes the response to the tape. Every time after that it replays the recorded bytes: **zero cost, zero latency, byte-identical.**\n\nPoint your AI Agent node at this URL in CI and at the real provider in production.\n\n### What is real here and what is not\nThe webhook, the request fingerprint, the cache-hit branch and the response shape are real and execute. The tape is an in-memory object in a Code node, and the cache-miss branch returns a fixed answer instead of calling a provider, so this runs with no API key and no bill.\n\nIt speaks the OpenAI chat-completions response shape on purpose, so an existing client can point at it unchanged. It does not integrate OpenAI and contains no OpenAI node.",
         "color": 4,
         "width": 540,
-        "height": 390
+        "height": 736
       }
     },
     {
@@ -146,14 +146,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        430,
-        -2
+        432,
+        0
       ],
       "parameters": {
         "content": "## The fingerprint is the whole trick\n\nThe key is a hash of the *canonical* request - model, temperature, tools, and the full message array. Change one word of the prompt and you get a different key, a cassette miss, and a fresh recording.\n\nThat is what makes it safe: **you cannot accidentally replay a stale answer for a prompt you just edited.** A prompt change invalidates its own tape.",
         "color": 3,
         "width": 540,
-        "height": 328
+        "height": 1056
       }
     },
     {
@@ -162,14 +162,14 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        670,
-        254
+        672,
+        1088
       ],
       "parameters": {
         "content": "## Why n8n does not have this and should\n\nn8n has 650k builders wiring AI nodes together. Not one of them can currently write a test that runs the same way twice without paying for it.\n\nGive them this and the entire eval story becomes free to run on every save. That is the difference between \"we have evals\" and \"our evals actually gate merges\".",
         "color": 5,
         "width": 580,
-        "height": 200
+        "height": 384
       }
     }
   ],
