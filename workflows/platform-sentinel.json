@@ -18,7 +18,7 @@
       "typeVersion": 1.3,
       "position": [
         -1200,
-        976
+        960
       ]
     },
     {
@@ -71,7 +71,7 @@
       "typeVersion": 3.5,
       "position": [
         -1008,
-        976
+        960
       ]
     },
     {
@@ -201,7 +201,7 @@
       "typeVersion": 4.5,
       "position": [
         -784,
-        16
+        -16
       ],
       "executeOnce": true,
       "alwaysOutputData": true,
@@ -217,7 +217,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        0
+        -32
       ],
       "onError": "continueRegularOutput"
     },
@@ -258,7 +258,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        336
+        304
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -273,7 +273,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        336
+        304
       ],
       "onError": "continueRegularOutput"
     },
@@ -326,7 +326,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        656
+        640
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -341,7 +341,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        656
+        640
       ],
       "onError": "continueRegularOutput"
     },
@@ -390,7 +390,7 @@
       "typeVersion": 4.5,
       "position": [
         -784,
-        976
+        960
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -405,7 +405,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        976
+        960
       ],
       "onError": "continueRegularOutput"
     },
@@ -454,7 +454,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        1312
+        1296
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -469,7 +469,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        1312
+        1296
       ],
       "onError": "continueRegularOutput"
     },
@@ -489,7 +489,7 @@
       "typeVersion": 1.1,
       "position": [
         -784,
-        1632
+        1616
       ],
       "onError": "continueRegularOutput",
       "alwaysOutputData": true
@@ -514,7 +514,7 @@
       "typeVersion": 4.5,
       "position": [
         -560,
-        1632
+        1616
       ],
       "alwaysOutputData": true,
       "onError": "continueRegularOutput"
@@ -529,7 +529,7 @@
       "typeVersion": 2,
       "position": [
         -336,
-        1632
+        1616
       ],
       "onError": "continueRegularOutput"
     },
@@ -786,7 +786,7 @@
       "typeVersion": 1,
       "position": [
         -1392,
-        -128
+        -160
       ]
     },
     {
@@ -802,7 +802,7 @@
       "typeVersion": 1,
       "position": [
         -1088,
-        208
+        176
       ]
     },
     {
@@ -818,7 +818,7 @@
       "typeVersion": 1,
       "position": [
         -1120,
-        528
+        512
       ]
     },
     {
@@ -834,7 +834,7 @@
       "typeVersion": 1,
       "position": [
         -1600,
-        848
+        832
       ]
     },
     {
@@ -850,7 +850,7 @@
       "typeVersion": 1,
       "position": [
         -1344,
-        1168
+        1152
       ]
     },
     {
@@ -866,13 +866,13 @@
       "typeVersion": 1,
       "position": [
         -1408,
-        1504
+        1488
       ]
     },
     {
       "parameters": {
         "content": "## Merge, score, persist, alert\nFindings dedupe by type + workflow + day. Alerts are separate: they fire on a\nstatus CHANGE, not on every run, and a recovery is announced explicitly.\nSee docs/07 Part 8 for why those are two different problems.",
-        "height": 640,
+        "height": 832,
         "width": 1164,
         "color": 7
       },

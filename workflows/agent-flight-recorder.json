@@ -400,7 +400,7 @@
       "parameters": {
         "content": "## Input\n**Ships with `useSyntheticData` ON, so it runs with no credentials and no data tables.**\nHit Execute and you should get verdict SUSPECT, fingerprint a834ed58f0de4b1e.\n\nSet `useSyntheticData` to false in Config to point it at a real execution_id on your own\ninstance - that path needs an n8n API credential and the recorder_evidence_packs table.\nIt reads the execution record, which is where the real tool calls survive even when memory\nand log streaming drop them (n8n-io/n8n #14361, #28532).",
         "height": 768,
-        "width": 900,
+        "width": 944,
         "color": 3
       },
       "id": "d6b4e82c-c5dd-4744-86d3-c93bd90a71c5",
